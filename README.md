@@ -44,7 +44,7 @@ python selftest.py
 nothing leaves your pc. no servers, no accounts, no tracking.
 
 <details>
-<summary>💌</summary>
-<br>
-also for my sweet girl
+  <summary>...</summary>
+  <br>
+  for my sweet girl
 </details>
