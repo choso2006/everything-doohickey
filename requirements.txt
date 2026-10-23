@@ -1,0 +1,6 @@
+customtkinter
+pillow
+pillow-heif
+pymupdf
+tkinterdnd2
+pytesseract
