@@ -141,8 +141,8 @@ def _curve_points(curve):
 
 def _format_curve(points):
     if not points:
-        return "linear (0,0 → 1,1)"
-    return " → ".join(str(p) for p in points)
+        return "linear (0,0 -> 1,1)"
+    return " -> ".join(str(p) for p in points)
 
 
 def make_settings_text(archive):
@@ -183,7 +183,7 @@ def make_settings_text(archive):
             curve = _format_curve(_curve_points(archive.get(f"{key}Curve")))
             lines.append(f"{label}: {round(v * 100)}%   curve: {curve}")
     if not any_dyn:
-        lines.append("(no pressure or tilt dynamics — flat brush)")
+        lines.append("(no pressure or tilt dynamics - flat brush)")
 
     lines += ["", "-- Files in this folder --"]
     grain = archive.get("bundledGrainPath")
@@ -284,7 +284,7 @@ def describe_brush(path):
             return Path(path).stem
         if len(entries) == 1:
             return str(entries[0][1].get("name") or Path(path).stem)
-        return f"{Path(path).stem} · {len(entries)} brushes"
+        return f"{Path(path).stem} - {len(entries)} brushes"
     except Exception:
         return path.name
 
@@ -312,7 +312,7 @@ def preview_brush(path, box=(520, 140)):
     name = str(archive.get("name") or Path(path).stem)
     if Path(path).suffix.lower() == ".brushset":
         n = len(entries)
-        info = f"{name} · {n} brush{'es' if n != 1 else ''}"
+        info = f"{name} - {n} brush{'es' if n != 1 else ''}"
     else:
         parts = [name]
         max_size = archive.get("maxSize")
@@ -322,7 +322,7 @@ def preview_brush(path, box=(520, 140)):
             parts.append(f"{Path(path).stat().st_size // 1024} KB")
         except OSError:
             pass
-        info = " · ".join(parts)
+        info = " - ".join(parts)
     return im, info
 
 
@@ -510,7 +510,6 @@ def read_sut_data(sut_path):
             if row and row[0]:
                 name = row[0]
                 
-            # Try to find Variant data for spacing/opacity
             var_cols = [r[1].lower() for r in conn.execute("PRAGMA table_info(Variant)")]
             var_row = conn.execute("SELECT * FROM Variant LIMIT 1").fetchone()
             if var_row:
@@ -536,7 +535,6 @@ def read_sut_data(sut_path):
                         with tarfile.open(fileobj=io.BytesIO(bytes(blob)), mode="r:") as tf:
                             for member in tf.getmembers():
                                 if member.name.lower().endswith((".png", ".jpg", ".jpeg")):
-                                    # We found an image, use it as the tip
                                     tip_png = tf.extractfile(member).read()
                                     break
                     except Exception:

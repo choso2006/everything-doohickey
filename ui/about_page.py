@@ -19,6 +19,7 @@ TOOL_INFO = {
     "ffmpeg": ("ffmpeg", "Needed for video and audio.", "ffmpeg", "Gyan.FFmpeg"),
     "ffprobe": ("ffprobe", "Reads video/audio details.", "ffmpeg", "Gyan.FFmpeg"),
     "ffplay": ("ffplay", "Plays the preview window.", "ffmpeg", "Gyan.FFmpeg"),
+    "mpv": ("mpv", "In-app video player with controls.", "mpv", "shinchiro.mpv"),
     "soffice": ("LibreOffice", "Needed for Documents page.", "--cask libreoffice", "TheDocumentFoundation.LibreOffice"),
     "tesseract": ("Tesseract OCR", "Reads text from scanned PDFs.", "tesseract", "UB-Mannheim.TesseractOCR"),
 }
@@ -94,8 +95,8 @@ class AboutPage(Page):
             "chime": "Chime (Soft System)",
             "tada": "Tada (System)",
             "pop": "Pop (Quick Beep)",
-            "cute": "✨ Cute Melody",
-            "voice": "🗣️ Speak the Message",
+            "cute": "Cute Melody",
+            "voice": "Speak the Message",
             "off": "Off",
         }
 
@@ -124,7 +125,7 @@ class AboutPage(Page):
         label(self.test_card, "Diagnostics", 15, "bold").pack(fill="x", padx=16, pady=(14, 4))
         label(
             self.test_card,
-            "Runs 250+ automated checks on the backend (takes about 50 seconds). "
+            "Runs automated checks on the backend. "
             "It creates temporary files to test conversions. Works in both the source version and the packaged app.",
             13, color=theme.MUTED, wraplength=720, justify="left",
         ).pack(fill="x", padx=16)
@@ -164,12 +165,15 @@ class AboutPage(Page):
         self.save_btn.configure(text="Saved!", fg_color=theme.ACCENT_HOVER)
 
         def reset_btn():
-            self.save_status.configure(text="")
-            self.save_btn.configure(text="Save Settings", fg_color=theme.ACCENT)
+            if self.winfo_exists():
+                self.save_status.configure(text="")
+                self.save_btn.configure(text="Save Settings", fg_color=theme.ACCENT)
 
         self.after(2000, reset_btn)
 
     def _append_test_log(self, text):
+        if not self.winfo_exists():
+            return
         self.test_output.insert("end", text)
         self.test_output.see("end")
 
@@ -181,9 +185,7 @@ class AboutPage(Page):
 
         def task():
             old_stdout = sys.stdout
-            
-            # Redirect stdout to the UI in real time
-            sys.stdout = _StdoutRedirector(lambda text: self.after(0, self._append_test_log, text))
+            sys.stdout = _StdoutRedirector(lambda text: self.after(0, self._append_test_log, text) if self.winfo_exists() else None)
 
             try:
                 import importlib
@@ -197,19 +199,22 @@ class AboutPage(Page):
             except SystemExit:
                 passed, total, failed = 0, 0, []
             except Exception:
-                self.after(0, self._append_test_log, f"\nSelf-test crashed:\n{traceback.format_exc()}\n")
+                self.after(0, self._append_test_log, f"\nSelf-test crashed:\n{traceback.format_exc()}\n") if self.winfo_exists() else None
                 passed, total, failed = 0, 0, []
             finally:
                 sys.stdout = old_stdout
 
-            self.after(0, lambda: self._append_test_log(
-                f"\n--- Done. {passed} passed of {total}. ---\n"
-            ))
-            self.after(0, self._test_finished)
+            if self.winfo_exists():
+                self.after(0, lambda: self._append_test_log(
+                    f"\n--- Done. {passed} passed of {total}. ---\n"
+                ))
+                self.after(0, self._test_finished)
 
         threading.Thread(target=task, daemon=True).start()
 
     def _test_finished(self):
+        if not self.winfo_exists():
+            return
         self.run_test_btn.configure(state="normal", text="Run Self-Test")
         if self.temp_path and Path(self.temp_path).exists():
             self.delete_test_btn.configure(state="normal")
@@ -263,13 +268,17 @@ class AboutPage(Page):
 
                 flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
                 subprocess.run(cmd, creationflags=flags, check=True)
-                self.after(0, lambda: self._install_done(btn, True))
+                if self.winfo_exists():
+                    self.after(0, lambda: self._install_done(btn, True))
             except Exception:
-                self.after(0, lambda: self._install_done(btn, False))
+                if self.winfo_exists():
+                    self.after(0, lambda: self._install_done(btn, False))
 
         threading.Thread(target=run_install, daemon=True).start()
 
     def _install_done(self, btn, success):
+        if not self.winfo_exists():
+            return
         if success:
             btn.configure(text="Installed! Restart App", state="disabled", fg_color=theme.ACCENT)
         else:
@@ -280,6 +289,9 @@ class AboutPage(Page):
         return {}
 
     def refresh(self):
+        if not self.winfo_exists():
+            return
+            
         for child in self.tools_card.winfo_children():
             child.destroy()
 
@@ -323,7 +335,6 @@ class AboutPage(Page):
         row.pack(fill="x", padx=16, pady=14)
         secondary_button(row, "Check again", self.refresh, width=120).pack(side="left")
 
-        # History
         for child in self.history_card.winfo_children():
             child.destroy()
 

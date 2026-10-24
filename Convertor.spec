@@ -27,8 +27,6 @@ binaries += collect_dynamic_libs("pymupdf")
 binaries += collect_dynamic_libs("tkinterdnd2")
 
 # Bundle mpv for the in-app video player.
-# Windows: bin/mpv.exe is self-contained -> datas.
-# macOS: bin/mpv + bin/libs/*.dylib produced by dylibbundler -> binaries.
 mpv_win = here / "bin" / "mpv.exe"
 mpv_mac = here / "bin" / "mpv"
 
@@ -51,6 +49,7 @@ hiddenimports = [
     "ui.files_page",
     "ui.brushes_page",
     "ui.player",
+    "core.brush_converter",  # Added missing import
     "selftest",
 ]
 hiddenimports += collect_submodules("pymupdf")

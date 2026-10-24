@@ -13,10 +13,10 @@ from ui.toolpage import ToolPage
 from ui.widgets import entry, note, secondary_button, setting_row, shorten
 
 ACTIONS = [
-    "Procreate → Textures",
-    "Procreate → CSP (.sut)",
-    "CSP → Procreate (.brush)",
-    "CSP → Textures",
+    "Procreate -> Textures",
+    "Procreate -> CSP (.sut)",
+    "CSP -> Procreate (.brush)",
+    "CSP -> Textures",
 ]
 
 
@@ -26,7 +26,7 @@ class BrushesPage(ToolPage):
     def __init__(self, parent, state=None):
         super().__init__(
             parent, "Brushes",
-            "Universal brush converter (Procreate ↔ Clip Studio Paint).", state,
+            "Universal brush converter (Procreate <-> Clip Studio Paint).", state,
         )
         self.template_var = self.remember("sut_template", ctk.StringVar(value=""))
         
@@ -37,7 +37,7 @@ class BrushesPage(ToolPage):
 
     def current_extensions(self):
         action = self.action_var.get()
-        if "CSP" in action and "→" in action:
+        if action.startswith("CSP"):
             return SUT_ALLOWED
         return BRUSH_ALLOWED
 
@@ -57,25 +57,25 @@ class BrushesPage(ToolPage):
         action = self.action_var.get()
         box = self.settings
 
-        if action == "Procreate → Textures":
+        if action == "Procreate -> Textures":
             note(box,
                  "Extracts the raw tip and texture images from Procreate .brush/.brushset files.\n\n"
                  "Each brush gets a folder containing:\n"
-                 "  · Shape.png | the exact tip texture\n"
-                 "  · settings.txt | Procreate values translated to CSP terms\n\n"
+                 "  - Shape.png: the exact tip texture\n"
+                 "  - settings.txt: Procreate values translated to CSP terms\n\n"
                  "If you drop a .brushset, you also get a master summary file.")
             return
 
-        if action == "CSP → Textures":
+        if action == "CSP -> Textures":
             note(box,
                  "Extracts the raw tip images from Clip Studio .sut files.\n\n"
                  "Each brush gets a folder containing:\n"
-                 "  · Shape.png | the brush tip\n"
-                 "  · settings.txt | CSP spacing and opacity values\n\n"
+                 "  - Shape.png: the brush tip\n"
+                 "  - settings.txt: CSP spacing and opacity values\n\n"
                  "Use this if you want to rebuild the brush manually in another app.")
             return
 
-        if action == "CSP → Procreate (.brush)":
+        if action == "CSP -> Procreate (.brush)":
             note(box,
                  "Converts Clip Studio Paint .sut brushes into Procreate .brush files.\n\n"
                  "This extracts the brush tip and standard settings from the CSP database "
@@ -84,7 +84,7 @@ class BrushesPage(ToolPage):
                  "Drag the resulting .brush file into Procreate on your iPad.")
             return
 
-        # Procreate → CSP (.sut) requires a template
+        # Procreate -> CSP (.sut) requires a template
         row = setting_row(box, "Template")
         template_entry = entry(row, self.template_var)
         template_entry.pack(side="left", fill="x", expand=True)
@@ -108,23 +108,23 @@ class BrushesPage(ToolPage):
              "  4. Press Choose above and pick that file.\n\n"
              "Every converted brush uses that template's pressure curves, "
              "spacing and blending, with the Procreate tip texture swapped in. "
-             "That's why the result always opens in Clip Studio | every internal "
+             "That's why the result always opens in Clip Studio - every internal "
              "field comes from a real CSP file. Use settings.txt to fine-tune "
              "spacing and opacity afterwards.")
 
     def make_job(self, files, output):
         action = self.action_var.get()
 
-        if action == "Procreate → Textures":
+        if action == "Procreate -> Textures":
             return self.batch_job(files, output, self._extract_procreate, hooks=True)
 
-        if action == "CSP → Textures":
+        if action == "CSP -> Textures":
             return self.batch_job(files, output, extract_sut_textures, hooks=True)
 
-        if action == "CSP → Procreate (.brush)":
+        if action == "CSP -> Procreate (.brush)":
             return self.batch_job(files, output, convert_csp_to_procreate, hooks=True)
 
-        # Procreate → CSP (.sut)
+        # Procreate -> CSP (.sut)
         template = self.template_var.get().strip()
         if not template or not Path(template).is_file():
             raise ValueError(
@@ -143,9 +143,9 @@ class BrushesPage(ToolPage):
         return path
 
     def done_message(self, result):
-        if "→ CSP" in self.job_action:
+        if "-> CSP" in self.job_action:
             total = sum(len(x) if isinstance(x, list) else 1 for x in result.done)
             return f"Done. Made {total} Clip Studio brush file(s)."
-        if "→ Procreate" in self.job_action:
+        if "-> Procreate" in self.job_action:
             return f"Done. Made {len(result.done)} Procreate brush file(s)."
         return super().done_message(result)

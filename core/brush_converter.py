@@ -16,6 +16,6 @@ def convert_csp_to_procreate(sut_path, output_folder, progress=None, cancel=None
         output_folder=output_folder
     )
 
-def convert_procreate_to_csp_sut(brush_path, template_sut_path, output_folder, progress=None, cancel=None):
+def convert_procreate_to_csp_sut(brush_path, output_folder, template_sut_path, progress=None, cancel=None):
     """Our existing write_sut logic."""
     return write_sut(template_sut_path, brush_path, output_folder, progress, cancel)

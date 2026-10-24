@@ -886,13 +886,11 @@ def test_brushes():
         db_path.unlink()
         return sut_path
 
-    # --- decode archive ---
     archive = B._decode_archive(make_archive("DirectTest", 200.0))
     check("archive decode returns dict", isinstance(archive, dict))
     check("archive decode name", archive.get("name") == "DirectTest")
     check("archive decode maxSize", archive.get("maxSize") == 200.0)
 
-    # --- single .brush ---
     brush_path = src / "TestBrush.brush"
     with zipfile.ZipFile(brush_path, "w") as zf:
         zf.writestr("Brush.archive", make_archive("TestBrush", 128.0, 0.1, 0.75))
@@ -915,7 +913,6 @@ def test_brushes():
     desc = B.describe_brush(brush_path)
     check("describe .brush", "TestBrush" in desc)
 
-    # --- multi-entry .brushset ---
     brushset_path = src / "TestSet.brushset"
     with zipfile.ZipFile(brushset_path, "w") as zf:
         for i in range(3):
@@ -936,14 +933,12 @@ def test_brushes():
     desc = B.describe_brush(brushset_path)
     check("describe .brushset", "3" in desc and "brush" in desc)
 
-    # --- preview ---
     preview = B.preview_brush(brush_path)
     if preview:
         img, info = preview
         check("preview returns image", img.width > 0 and img.height > 0)
         check("preview info mentions name", "TestBrush" in info)
 
-    # --- malformed input ---
     bad = src / "garbage.brush"
     bad.write_bytes(b"this is not a valid brush file")
     try:
@@ -952,7 +947,6 @@ def test_brushes():
     except ValueError:
         check("malformed brush raises", True)
 
-    # --- write_sut with synthetic template ---
     try:
         template_path = make_sut("TemplateBrush", 200.0)
         sut_results = B.write_sut(template_path, brush_path, out)
@@ -966,31 +960,27 @@ def test_brushes():
     except Exception as e:
         check("write_sut end-to-end", False, str(e)[:120])
 
-    # --- read_sut_data ---
     test_sut = make_sut("ExtractMe", 300.0, 0.08, 0.9)
     name, tip_png, settings = B.read_sut_data(test_sut)
     check("read_sut_data gets name", name == "ExtractMe")
     check("read_sut_data gets tip", len(tip_png) > 0)
     check("read_sut_data gets settings", abs(settings["opacity"] - 0.9) < 0.01)
 
-    # --- extract_sut_textures ---
     tex_out = B.extract_sut_textures(test_sut, out)
     check("extract_sut_textures makes dir", tex_out.exists() and tex_out.is_dir())
     check("extract_sut_textures saves png", (tex_out / "Shape.png").exists())
     check("extract_sut_textures saves txt", (tex_out / "settings.txt").exists())
 
-    # --- write_procreate_brush ---
     new_brush = B.write_procreate_brush("ReverseTest", tip_png, 0.1, 0.5, 200.0, out)
     check("write_procreate_brush makes file", new_brush.exists() and new_brush.suffix == ".brush")
     if new_brush.exists():
         with zipfile.ZipFile(new_brush) as zf:
             check("write_procreate_brush has archive", "Brush.archive" in zf.namelist())
 
-    # --- bidirectional converters ---
     csp_to_pro = BC.convert_csp_to_procreate(test_sut, out)
     check("convert_csp_to_procreate works", csp_to_pro.exists())
 
-    pro_to_csp = BC.convert_procreate_to_csp_sut(brush_path, template_path, out)
+    pro_to_csp = BC.convert_procreate_to_csp_sut(brush_path, out, template_sut_path=template_path)
     check("convert_procreate_to_csp_sut works", len(pro_to_csp) == 1)
 
 
