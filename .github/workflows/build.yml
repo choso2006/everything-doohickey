@@ -16,43 +16,20 @@ jobs:
           - os: windows-latest
             platform: windows
             artifact: Convertor-Windows
-            arch: x64
-          - os: macos-14
-            platform: mac-intel
-            artifact: Convertor-Mac-Intel
-            arch: x86_64
           - os: macos-14
             platform: mac-silicon
             artifact: Convertor-Mac-Silicon
-            arch: arm64
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Rosetta & Intel Python (macOS Intel only)
-        if: matrix.platform == 'mac-intel'
-        shell: bash
-        run: |
-          sudo softwareupdate --install-rosetta --agree-to-license
-          curl -O https://www.python.org/ftp/python/3.11.9/python-3.11.9-macosx10.9.pkg
-          sudo installer -pkg python-3.11.9-macosx10.9.pkg -target /
-
-      - name: Set up Python (macOS Silicon / Windows)
-        if: matrix.platform != 'mac-intel'
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install dependencies (macOS Intel)
-        if: matrix.platform == 'mac-intel'
-        shell: bash
-        run: |
-          arch -x86_64 /Library/Frameworks/Python.framework/Versions/3.11/bin/python3 -m pip install --upgrade pip
-          arch -x86_64 /Library/Frameworks/Python.framework/Versions/3.11/bin/python3 -m pip install --upgrade -r requirements-dev.txt
-
-      - name: Install dependencies (macOS Silicon / Windows)
-        if: matrix.platform != 'mac-intel'
+      - name: Install dependencies
         shell: bash
         run: |
           python -m pip install --upgrade pip
@@ -91,11 +68,7 @@ jobs:
           echo "Downloading portable mpv.app for macOS..."
           mkdir -p bin/libs
           
-          if [ "${{ matrix.arch }}" = "arm64" ]; then
-            URL="https://github.com/mpv-macos/mpv-macos/releases/latest/download/mpv-arm64.zip"
-          else
-            URL="https://github.com/mpv-macos/mpv-macos/releases/latest/download/mpv-x86_64.zip"
-          fi
+          URL="https://github.com/zhongfly/mpv-macos-builds/releases/latest/download/mpv-macos.zip"
           
           curl -L -o mpv.zip "$URL"
           unzip -q -o mpv.zip
@@ -103,16 +76,9 @@ jobs:
           cp "mpv.app/Contents/MacOS/mpv" bin/mpv
           chmod +x bin/mpv
           
-          find "mpv.app/Contents/Frameworks" -name "*.dylib" -exec cp {} bin/libs/ \; || true
+          cp -R "mpv.app/Contents/Frameworks/"* bin/libs/ || true
 
-      - name: Build (macOS Intel)
-        if: matrix.platform == 'mac-intel'
-        shell: bash
-        run: |
-          arch -x86_64 /Library/Frameworks/Python.framework/Versions/3.11/bin/python3 -m PyInstaller Convertor.spec --noconfirm --clean
-
-      - name: Build (macOS Silicon / Windows)
-        if: matrix.platform != 'mac-intel'
+      - name: Build
         shell: bash
         run: |
           python -m PyInstaller Convertor.spec --noconfirm --clean
