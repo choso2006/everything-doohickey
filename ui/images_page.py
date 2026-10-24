@@ -232,7 +232,7 @@ class ImagesPage(ToolPage):
             )
 
         if action == "Compress to size":
-            amount = read_float(self.size_value.get(), "Size", 2, 1_000_000)
+            amount = read_float(self.size_value.get(), "Size", 0.001, 1_000_000)
             kb = amount * (1024 if self.size_unit.get() == "MB" else 1)
             if kb < 2:
                 raise ValueError("Size must be at least 2 KB.")

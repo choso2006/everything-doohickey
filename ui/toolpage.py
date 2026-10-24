@@ -491,7 +491,7 @@ class ToolPage(Page):
             self.render_rows()
 
         allowed = self.current_extensions()
-        wrong = [f for f in self.files if f.suffix.lower() not in allowed]
+        wrong = [f for f in self.files if allowed and f.suffix.lower() not in allowed]
         if wrong:
             self.set_status(
                 f"{len(wrong)} files don't fit this action. Remove them or change action.",
@@ -532,9 +532,10 @@ class ToolPage(Page):
 
     def pick_files(self):
         patterns = tuple(f"*{ext}" for ext in self.current_extensions())
+        filetypes = [("Supported", patterns), ("All", "*.*")] if patterns else [("All", "*.*")]
         paths = filedialog.askopenfilenames(
             title="Choose files",
-            filetypes=[("Supported", patterns), ("All", "*.*")],
+            filetypes=filetypes,
         )
         self.add_files(paths)
 
@@ -897,7 +898,12 @@ class ToolPage(Page):
         if self.same_folder_var.get():
             output = files[0].parent
         else:
-            output = self.output_folder or files[0].parent / "Convertor output"
+            temp_dir = Path(tempfile.gettempdir()) / "Convertor_Paste"
+            if files[0].parent == temp_dir:
+                output = self.output_folder or Path.home() / "Downloads"
+            else:
+                output = self.output_folder or files[0].parent / "Convertor output"
+
 
         self.report_savings = False
         self.job_action = self.action_var.get()

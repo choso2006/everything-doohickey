@@ -25,7 +25,7 @@ def list_files(folder, extensions):
         raise FileNotFoundError(f"folder not found: {folder}")
     return sorted(
         f for f in folder.iterdir()
-        if f.is_file() and f.suffix.lower() in extensions
+        if f.is_file() and (not extensions or f.suffix.lower() in extensions)
     )
 
 

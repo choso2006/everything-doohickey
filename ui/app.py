@@ -236,6 +236,7 @@ class App(Window):
             return
 
         self.save_settings()
+        self.page_config = load_config().get("pages", {})
         mode = choice.lower()
         theme.use(mode)
         
