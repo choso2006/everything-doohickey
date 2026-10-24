@@ -2,53 +2,182 @@ name: Build Convertor
 
 on:
   push:
-    branches: [ main ]
+    branches: [main, master]
   workflow_dispatch:
 
 jobs:
   build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: windows-latest
-            name: windows
-          - os: macos-latest
-            name: mac-apple-silicon
-          - os: macos-15-intel
-            name: mac-intel
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
+            platform: windows
+            artifact: Convertor-Windows
+          - os: macos-13
+            platform: mac-intel
+            artifact: Convertor-Mac-Intel
+          - os: macos-14
+            platform: mac-silicon
+            artifact: Convertor-Mac-Silicon
 
-      - uses: actions/setup-python@v5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install dependencies
+        shell: bash
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements-dev.txt
+          python -m pip install --upgrade -r requirements-dev.txt
 
-      - name: Build with PyInstaller
-        run: python -m PyInstaller Convertor.spec --noconfirm --clean
-
-      - name: Zip Mac app
-        if: runner.os == 'macOS'
-        run: |
-          cd dist
-          ditto -c -k --sequesterRsrc --keepParent Convertor.app Convertor-${{ matrix.name }}.zip
-
-      - name: Zip Windows app
+      - name: Bundle mpv (Windows)
         if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          cd dist
-          7z a Convertor-windows.zip Convertor
-        shell: bash
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Force -Path bin | Out-Null
+          try {
+            $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/shinchiro/mpv-winbuild-cmake/releases/latest" -Headers @{ "User-Agent" = "convertor-ci" }
+            $asset = $rel.assets | Where-Object { $_.name -match "^mpv-x86_64-v3-.*\.7z$" } | Select-Object -First 1
+            if (-not $asset) { throw "no mpv-x86_64 asset in latest release" }
+            Invoke-WebRequest -Uri $asset.browser_download_url -OutFile mpv.7z
+            $sevenZip = "C:\Program Files\7-Zip\7z.exe"
+            if (-not (Test-Path $sevenZip)) {
+              choco install 7zip.install -y --no-progress
+            }
+            & $sevenZip x mpv.7z -ompv_tmp -y | Out-Null
+            $mpvExe = Get-ChildItem -Path mpv_tmp -Filter "mpv.exe" -Recurse | Select-Object -First 1
+            if (-not $mpvExe) { throw "mpv.exe not found in archive" }
+            Copy-Item $mpvExe.FullName bin\mpv.exe -Force
+            Remove-Item -Recurse -Force mpv.7z, mpv_tmp
+            Write-Host "Bundled mpv from $($asset.name)"
+          } catch {
+            Write-Warning "Could not download mpv: $_"
+            Write-Warning "Build will continue without mpv; video player will fall back to ffplay."
+          }
 
-      - name: Upload Artifacts
+      - name: Bundle mpv (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -e
+          echo "Installing mpv and dylibbundler via Homebrew..."
+          brew install mpv dylibbundler || brew upgrade mpv dylibbundler || true
+
+          mkdir -p bin/libs
+          MPV_BIN="$(command -v mpv || true)"
+          if [ -z "$MPV_BIN" ]; then
+            echo "WARNING: mpv not found after brew install; skipping bundle."
+            exit 0
+          fi
+
+          cp "$MPV_BIN" bin/mpv
+          chmod +x bin/mpv
+
+          echo "Running dylibbundler to make mpv portable..."
+          dylibbundler -od -b \
+            -x bin/mpv \
+            -d bin/libs \
+            -p @executable_path/libs/ || {
+            echo "WARNING: dylibbundler failed"
+          }
+
+          echo "=== mpv dependencies after bundling ==="
+          otool -L bin/mpv || true
+          echo "=== libs bundled ==="
+          ls -la bin/libs/ || echo "(none)"
+
+      - name: Build
+        shell: bash
+        run: |
+          python -m PyInstaller Convertor.spec --noconfirm --clean
+
+      - name: Ad-hoc sign (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set +e
+          BUNDLE="dist/Convertor.app"
+
+          MPV_PATH=$(find "$BUNDLE" -name mpv -type f 2>/dev/null | head -1)
+          if [ -n "$MPV_PATH" ]; then
+            echo "Signing mpv: $MPV_PATH"
+            codesign --force --sign - "$MPV_PATH"
+          fi
+
+          LIBS_DIR=$(find "$BUNDLE" -name "libs" -type d 2>/dev/null | head -1)
+          if [ -n "$LIBS_DIR" ]; then
+            echo "Signing dylibs in $LIBS_DIR"
+            find "$LIBS_DIR" -name "*.dylib" -exec codesign --force --sign - {} \;
+          fi
+
+          echo "Signing app bundle..."
+          codesign --force --deep --sign - "$BUNDLE"
+
+          echo "=== Verification ==="
+          codesign --verify --deep --strict --verbose=2 "$BUNDLE" || echo "WARNING: codesign verification failed"
+
+      - name: Verify macOS bundle
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set +e
+          BUNDLE="dist/Convertor.app"
+          echo "=== Bundle layout ==="
+          ls -la "$BUNDLE/Contents/MacOS/" 2>/dev/null
+          echo ""
+          ls -la "$BUNDLE/Contents/Frameworks/" 2>/dev/null | head -20
+
+          echo ""
+          echo "=== mpv check ==="
+          MPV_PATH=$(find "$BUNDLE" -name mpv -type f 2>/dev/null | head -1)
+          if [ -n "$MPV_PATH" ]; then
+            echo "mpv located at: $MPV_PATH"
+            chmod +x "$MPV_PATH"
+            echo "--- mpv --version ---"
+            "$MPV_PATH" --version 2>&1 | head -3 || echo "WARNING: mpv could not run"
+            echo "--- Homebrew path check ---"
+            if otool -L "$MPV_PATH" 2>/dev/null | grep -E "homebrew|usr/local"; then
+              echo "!!!!! WARNING: mpv links to Homebrew paths — NOT portable !!!!!"
+            else
+              echo "OK: no Homebrew paths in mpv"
+            fi
+          else
+            echo "WARNING: mpv not found in bundle"
+          fi
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist\Convertor\* -DestinationPath Convertor-Windows.zip -Force
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent dist/Convertor.app "Convertor-${{ matrix.platform }}.zip"
+
+      - name: Upload artifact (Windows)
+        if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
-          name: Convertor-${{ matrix.name }}
-          path: |
-            dist/Convertor-*.zip
+          name: ${{ matrix.artifact }}
+          path: Convertor-Windows.zip
+          if-no-files-found: error
+
+      - name: Upload artifact (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: Convertor-${{ matrix.platform }}.zip
+          if-no-files-found: error

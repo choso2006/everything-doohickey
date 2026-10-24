@@ -20,6 +20,7 @@ PAGES = {
     "PDFs": "ui.pdfs_page.PdfsPage",
     "Video": "ui.video_page.VideoPage",
     "Audio": "ui.audio_page.AudioPage",
+    "Brushes": "ui.brushes_page.BrushesPage",
     "Documents": "ui.docs_page.DocsPage",
     "Files": "ui.files_page.FilesPage",
 }
@@ -348,23 +349,23 @@ class App(Window):
     def on_close(self):
         if self._destroying:
             return
-        
+
         busy = self.running_pages()
         if busy:
             if not messagebox.askyesno("Job running", "A job is still running. Stop it and quit?"):
                 return
             for page in busy:
                 page.runner.cancel()
-        
+
         self._destroying = True
-        
+
         if self._bg_job:
             try:
                 self.after_cancel(self._bg_job)
             except Exception:
                 pass
             self._bg_job = None
-        
+
         try:
             self.save_settings()
         except Exception:
@@ -373,7 +374,7 @@ class App(Window):
             stop_player()
         except Exception:
             pass
-        
+
         try:
             self.withdraw()
         except Exception:

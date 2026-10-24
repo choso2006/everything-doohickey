@@ -24,6 +24,22 @@ datas += collect_data_files("pymupdf")
 binaries = []
 binaries += collect_dynamic_libs("pillow_heif")
 binaries += collect_dynamic_libs("pymupdf")
+binaries += collect_dynamic_libs("tkinterdnd2")
+
+# Bundle mpv for the in-app video player.
+# Windows: bin/mpv.exe is self-contained -> datas.
+# macOS: bin/mpv + bin/libs/*.dylib produced by dylibbundler -> binaries.
+mpv_win = here / "bin" / "mpv.exe"
+mpv_mac = here / "bin" / "mpv"
+
+if is_win and mpv_win.exists():
+    datas.append((str(mpv_win), "bin"))
+elif is_mac and mpv_mac.exists():
+    binaries.append((str(mpv_mac), "bin"))
+    mpv_libs = here / "bin" / "libs"
+    if mpv_libs.exists():
+        for dylib in mpv_libs.glob("*.dylib"):
+            binaries.append((str(dylib), "bin/libs"))
 
 hiddenimports = [
     "PIL._tkinter_finder",
@@ -33,6 +49,8 @@ hiddenimports = [
     "ui.audio_page",
     "ui.docs_page",
     "ui.files_page",
+    "ui.brushes_page",
+    "ui.player",
     "selftest",
 ]
 hiddenimports += collect_submodules("pymupdf")

@@ -32,6 +32,7 @@ you need these installed for certain features to work, but the app will detect t
 - ffmpeg (for video/audio)
 - libreoffice (for documents)
 - tesseract (for ocr)
+- mpv (for the in-app video player — bundled on Windows, install with `brew install mpv` on Mac)
 
 ## testing
 

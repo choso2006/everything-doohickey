@@ -1,18 +1,22 @@
 """Checks every backend feature using files it makes itself.
 
 Run:  py selftest.py            (everything)
-      py selftest.py app        (or: images, pdfs, video, audio, docs, files, helpers)
+      py selftest.py brushes    (or: app, images, pdfs, video, audio, docs, files, helpers)
 Nothing in your own folders is touched. Results go in a temp folder.
 """
 import os
 import sys
+import io
 import time
 import tempfile
 import traceback
 import shutil
 import subprocess
 import hashlib
-import io
+import plistlib
+import sqlite3
+import tarfile
+import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -63,7 +67,6 @@ def test_app():
 
     section("app logic")
 
-    # Redirect app data to a temp folder so we NEVER touch the user's real settings
     original_dir = appdata.data_dir
     fake_dir = make("fake_appdata")
     appdata.data_dir = lambda: fake_dir
@@ -96,12 +99,12 @@ def test_app():
         merged.update(saved_presets["DummyPage"])
         check("preset merging logic", "WebP" in merged and "Test Preset" in merged)
     finally:
-        # Restore the real data directory
         appdata.data_dir = original_dir
 
     status = tool_status()
     check("tool_status returns dict", isinstance(status, dict))
     check("ffmpeg key present", "ffmpeg" in status)
+    check("mpv key present", "mpv" in status)
 
     if sys.platform == "darwin":
         check("macOS detected", True)
@@ -826,6 +829,171 @@ def test_docs():
         check("cancel stops LibreOffice", True)
 
 
+def test_brushes():
+    from core import brushes as B
+    from core import brush_converter as BC
+
+    section("brushes")
+    src = make("brush_src")
+    out = make("brush_out")
+
+    def make_archive(name, max_size=100.0, spacing=0.05, opacity=0.8):
+        return plistlib.dumps({
+            "$version": 100000,
+            "$archiver": "NSKeyedArchiver",
+            "$top": {"root": plistlib.UID(1)},
+            "$objects": [
+                "$null",
+                {
+                    "NS.keys": [plistlib.UID(2), plistlib.UID(3),
+                                plistlib.UID(4), plistlib.UID(5)],
+                    "NS.objects": [plistlib.UID(6), plistlib.UID(7),
+                                   plistlib.UID(8), plistlib.UID(9)],
+                },
+                "name", "maxSize", "plotSpacing", "paintOpacity",
+                name, max_size, spacing, opacity,
+            ],
+        }, fmt=plistlib.FMT_BINARY)
+
+    def make_tip(size=(64, 64)):
+        buf = io.BytesIO()
+        img = Image.new("RGBA", size, (255, 255, 255, 128))
+        img.save(buf, format="PNG")
+        return buf.getvalue()
+
+    def make_sut(name, max_size=100.0, spacing=0.05, opacity=0.8):
+        tip = make_tip()
+        tar_buf = io.BytesIO()
+        with tarfile.open(fileobj=tar_buf, mode="w") as tf:
+            info = tarfile.TarInfo("tip.png")
+            info.size = len(tip)
+            tf.addfile(info, io.BytesIO(tip))
+        
+        db_path = src / f"{name}.sqlite"
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("CREATE TABLE Node (NodeName TEXT)")
+        conn.execute("CREATE TABLE Variant (interval REAL, opacity REAL, brushsize REAL)")
+        conn.execute("CREATE TABLE MaterialFile (_PW_ID INTEGER PRIMARY KEY, TheFileData BLOB)")
+        conn.execute("INSERT INTO Node VALUES (?)", (name,))
+        conn.execute("INSERT INTO Variant VALUES (?, ?, ?)", (spacing, opacity, max_size))
+        conn.execute("INSERT INTO MaterialFile VALUES (1, ?)", (tar_buf.getvalue(),))
+        conn.commit()
+        conn.execute("VACUUM")
+        conn.close()
+        
+        sut_path = src / f"{name}.sut"
+        sut_path.write_bytes(db_path.read_bytes())
+        db_path.unlink()
+        return sut_path
+
+    # --- decode archive ---
+    archive = B._decode_archive(make_archive("DirectTest", 200.0))
+    check("archive decode returns dict", isinstance(archive, dict))
+    check("archive decode name", archive.get("name") == "DirectTest")
+    check("archive decode maxSize", archive.get("maxSize") == 200.0)
+
+    # --- single .brush ---
+    brush_path = src / "TestBrush.brush"
+    with zipfile.ZipFile(brush_path, "w") as zf:
+        zf.writestr("Brush.archive", make_archive("TestBrush", 128.0, 0.1, 0.75))
+        zf.writestr("Shape.png", make_tip())
+        zf.writestr("QuickLook/Thumbnail.png", make_tip((32, 32)))
+
+    result = B.extract_brush(brush_path, out)
+    check("extract brush returns dir", result.exists() and result.is_dir())
+    check("extract brush writes Shape.png", (result / "Shape.png").exists())
+    check("extract brush writes Thumbnail.png", (result / "Thumbnail.png").exists())
+    check("extract brush writes settings.txt", (result / "settings.txt").exists())
+
+    if (result / "settings.txt").exists():
+        settings = (result / "settings.txt").read_text(encoding="utf-8")
+        check("settings has brush name", "TestBrush" in settings)
+        check("settings has opacity", "75" in settings)
+        check("settings has spacing", "10" in settings)
+        check("settings has CSP translation", "Interval" in settings)
+
+    desc = B.describe_brush(brush_path)
+    check("describe .brush", "TestBrush" in desc)
+
+    # --- multi-entry .brushset ---
+    brushset_path = src / "TestSet.brushset"
+    with zipfile.ZipFile(brushset_path, "w") as zf:
+        for i in range(3):
+            uuid = f"UUID{i:04d}"
+            zf.writestr(f"{uuid}/Brush.archive",
+                        make_archive(f"SetBrush{i}", 100.0 + i))
+            zf.writestr(f"{uuid}/Shape.png", make_tip())
+            zf.writestr(f"{uuid}/Reset/Brush.archive",
+                        make_archive(f"Reset{i}"))
+            zf.writestr(f"{uuid}/Reset/Shape.png", make_tip())
+
+    set_results = B.extract_brushset(brushset_path, out)
+    check("brushset extracts 3 brushes", len(set_results) == 3)
+    names = {p.name for p in set_results}
+    check("brushset extract names", names == {"SetBrush0", "SetBrush1", "SetBrush2"})
+    check("brushset master summary created", (out / "_ALL_BRUSHES_SUMMARY.txt").exists())
+
+    desc = B.describe_brush(brushset_path)
+    check("describe .brushset", "3" in desc and "brush" in desc)
+
+    # --- preview ---
+    preview = B.preview_brush(brush_path)
+    if preview:
+        img, info = preview
+        check("preview returns image", img.width > 0 and img.height > 0)
+        check("preview info mentions name", "TestBrush" in info)
+
+    # --- malformed input ---
+    bad = src / "garbage.brush"
+    bad.write_bytes(b"this is not a valid brush file")
+    try:
+        B.extract_brush(bad, out)
+        check("malformed brush raises", False)
+    except ValueError:
+        check("malformed brush raises", True)
+
+    # --- write_sut with synthetic template ---
+    try:
+        template_path = make_sut("TemplateBrush", 200.0)
+        sut_results = B.write_sut(template_path, brush_path, out)
+        check("write_sut produces file", len(sut_results) == 1)
+        check("write_sut .sut extension", sut_results[0].suffix == ".sut")
+
+        if sut_results:
+            with sqlite3.connect(str(sut_results[0])) as c:
+                row = c.execute("SELECT NodeName FROM Node").fetchone()
+                check("write_sut renames node", row and row[0] == "TestBrush")
+    except Exception as e:
+        check("write_sut end-to-end", False, str(e)[:120])
+
+    # --- read_sut_data ---
+    test_sut = make_sut("ExtractMe", 300.0, 0.08, 0.9)
+    name, tip_png, settings = B.read_sut_data(test_sut)
+    check("read_sut_data gets name", name == "ExtractMe")
+    check("read_sut_data gets tip", len(tip_png) > 0)
+    check("read_sut_data gets settings", abs(settings["opacity"] - 0.9) < 0.01)
+
+    # --- extract_sut_textures ---
+    tex_out = B.extract_sut_textures(test_sut, out)
+    check("extract_sut_textures makes dir", tex_out.exists() and tex_out.is_dir())
+    check("extract_sut_textures saves png", (tex_out / "Shape.png").exists())
+    check("extract_sut_textures saves txt", (tex_out / "settings.txt").exists())
+
+    # --- write_procreate_brush ---
+    new_brush = B.write_procreate_brush("ReverseTest", tip_png, 0.1, 0.5, 200.0, out)
+    check("write_procreate_brush makes file", new_brush.exists() and new_brush.suffix == ".brush")
+    if new_brush.exists():
+        with zipfile.ZipFile(new_brush) as zf:
+            check("write_procreate_brush has archive", "Brush.archive" in zf.namelist())
+
+    # --- bidirectional converters ---
+    csp_to_pro = BC.convert_csp_to_procreate(test_sut, out)
+    check("convert_csp_to_procreate works", csp_to_pro.exists())
+
+    pro_to_csp = BC.convert_procreate_to_csp_sut(brush_path, template_path, out)
+    check("convert_procreate_to_csp_sut works", len(pro_to_csp) == 1)
+
+
 def test_misc():
     from core.common import clean_name, format_stamp, format_time, to_seconds
     from core.batch import run_batch
@@ -868,6 +1036,7 @@ SECTIONS = {
     "audio": test_audio,
     "files": test_files,
     "docs": test_docs,
+    "brushes": test_brushes,
 }
 
 

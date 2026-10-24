@@ -26,6 +26,11 @@ HINTS = {
         "'winget install UB-Mannheim.TesseractOCR' (Windows) or 'brew install tesseract' (Mac), "
         "then fully close and reopen the app."
     ),
+        "mpv": (
+        "The in-app video player needs mpv. Install it with "
+        "'winget install mpv' (Windows) or 'brew install mpv' (Mac), "
+        "then fully close and reopen the app."
+    ),
 }
 
 
@@ -37,12 +42,13 @@ def app_dir():
 
 def _extra_folders(name):
     folders = []
-    
+
     if sys.platform == "darwin":
-        # Mac Homebrew paths
         folders.extend([Path("/opt/homebrew/bin"), Path("/usr/local/bin")])
+        if name == "mpv":
+            folders.append(Path("/Applications/mpv.app/Contents/MacOS"))
         return folders
-        
+
     if os.name != "nt":
         return folders
 
@@ -54,6 +60,8 @@ def _extra_folders(name):
         if packages.is_dir():
             for package in packages.glob("Gyan.FFmpeg*"):
                 folders.extend(package.glob("ffmpeg-*/bin"))
+            for package in packages.glob("shinchiro.mpv*"):
+                folders.extend(package.glob("mpv*"))
 
     if name == "soffice":
         for env in ("ProgramFiles", "ProgramFiles(x86)"):
@@ -69,8 +77,15 @@ def _extra_folders(name):
         if local:
             folders.append(Path(local) / "Programs" / "Tesseract-OCR")
 
-    return folders
+    if name == "mpv":
+        for env in ("ProgramFiles", "ProgramFiles(x86)"):
+            base = os.environ.get(env)
+            if base:
+                folders.append(Path(base) / "MPV Player")
+        if local:
+            folders.append(Path(local) / "Programs" / "MPV Player")
 
+    return folders
 
 def find_tool(name):
     exe = name + (".exe" if os.name == "nt" else "")
@@ -90,6 +105,6 @@ def require_tool(name):
 
 
 def tool_status():
-    # Added "brew" so we can check for it on Mac
     return {name: find_tool(name)
-            for name in ("ffmpeg", "ffprobe", "ffplay", "soffice", "tesseract", "brew")}
+            for name in ("ffmpeg", "ffprobe", "ffplay", "soffice",
+                         "tesseract", "brew", "mpv")}

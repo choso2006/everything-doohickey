@@ -68,7 +68,7 @@ class ToolPage(Page):
         self.last_output = None
         self.on_save = None
         self._started_at = 0.0
-        
+
         self._undo_job = None
         self._undo_data = None
         self.recent_folders = list(self.state.get("recent_folders", []))
@@ -88,7 +88,7 @@ class ToolPage(Page):
         self.sort_var = ctk.StringVar(value=self.state.get("sort", "Added"))
         self.filter_var = ctk.StringVar(value="")
         self.same_folder_var = ctk.BooleanVar(value=self.state.get("same_folder", False))
-        
+
         self.preset_var = ctk.StringVar(value="Select Preset...")
 
         self.runner = JobRunner(self, self.on_file, self.on_progress, self.on_finished)
@@ -109,7 +109,7 @@ class ToolPage(Page):
         count = len(result.done)
         config = load_config()
         custom = config.get("custom_message", "Done! {count} files converted.")
-        
+
         try:
             text = custom.replace("{count}", str(count))
         except Exception:
@@ -163,7 +163,7 @@ class ToolPage(Page):
         builtins = self.BUILTIN_PRESETS.get(self.__class__.__name__, {})
         config = load_config()
         saved = config.get("saved_presets", {}).get(self.__class__.__name__, {})
-        
+
         merged = dict(builtins)
         merged.update(saved)
         return merged
@@ -171,19 +171,17 @@ class ToolPage(Page):
     def apply_preset(self, choice):
         if not choice or choice == "Select Preset...":
             return
-            
+
         presets = self.get_all_presets()
         if choice not in presets:
             return
-            
+
         preset = presets[choice]
-        
-        # 1. Set the action and force the UI menu to update
+
         if "action" in preset:
             self.action_var.set(preset["action"])
             self.action_menu.set(preset["action"])
-            
-        # 2. Set all other variables
+
         for key, value in preset.items():
             if key == "action":
                 continue
@@ -192,43 +190,50 @@ class ToolPage(Page):
                     self.vars[key].set(value)
                 except Exception:
                     pass
-                    
-        # 3. Rebuild the settings panel to show the new widgets
+
         self.build_settings()
-        
-        # 4. Reset the preset dropdown so you can click the same one again
-        self.preset_var.set("Select Preset...")
-        self.preset_menu.set("Select Preset...")
+        if self.rows_ordered != self.is_ordered():
+            self.render_rows()
+        # Keep the dropdown on this preset so Delete knows what to target.
 
     def prompt_save_preset(self):
         dialog = SquaredInputDialog(self, "Save Preset", "Name this preset:")
         name = dialog.get_input()
         if not name:
             return
-            
+
         name = name.strip()
+        if not name:
+            return
         current_state = self.get_state()
-        
+
         config = load_config()
         if "saved_presets" not in config:
             config["saved_presets"] = {}
         if self.__class__.__name__ not in config["saved_presets"]:
             config["saved_presets"][self.__class__.__name__] = {}
-            
+
         config["saved_presets"][self.__class__.__name__][name] = current_state
         save_config(config)
-        
+
         self.set_status(f"Saved preset: {name}")
-        self.refresh_preset_menu()
+
+        # Refresh the list, then select the newly-saved preset without firing apply_preset
+        presets = list(self.get_all_presets().keys())
+        self.preset_menu.configure(values=["Select Preset..."] + presets, command=None)
+        self.preset_var.set(name)
+        self.preset_menu.set(name)
+        self.preset_menu.configure(command=self.apply_preset)
 
     def delete_preset(self):
         current = self.preset_var.get()
         if not current or current == "Select Preset...":
+            self.set_status("Select a preset first.", error=True)
             return
-            
+
         config = load_config()
         saved = config.get("saved_presets", {}).get(self.__class__.__name__, {})
-        
+
         if current in saved:
             del saved[current]
             save_config(config)
@@ -239,9 +244,6 @@ class ToolPage(Page):
 
     def refresh_preset_menu(self):
         presets = list(self.get_all_presets().keys())
-        if not presets:
-            presets = ["Select Preset..."]
-            
         self.preset_menu.configure(values=["Select Preset..."] + presets)
         self.preset_var.set("Select Preset...")
         self.preset_menu.set("Select Preset...")
@@ -255,7 +257,7 @@ class ToolPage(Page):
                 actual_action = wrapper
             else:
                 actual_action = action
-                
+
             return run_batch(
                 files, output, actual_action,
                 on_file=on_file, on_progress=on_progress,
@@ -282,12 +284,12 @@ class ToolPage(Page):
     def paste_from_clipboard(self):
         if self.runner.running:
             return
-            
+
         try:
             clipboard = ImageGrab.grabclipboard()
             if clipboard is None:
                 return
-                
+
             if isinstance(clipboard, Image.Image):
                 temp_dir = Path(tempfile.gettempdir()) / "Convertor_Paste"
                 temp_dir.mkdir(parents=True, exist_ok=True)
@@ -296,12 +298,12 @@ class ToolPage(Page):
                 clipboard.save(path)
                 self.add_files([path])
                 self.set_status("Pasted image.")
-                
+
             elif isinstance(clipboard, list):
                 paths = [Path(p) for p in clipboard]
                 self.add_files(paths)
                 self.set_status(f"Pasted {len(paths)} files.")
-                
+
         except Exception as e:
             self.set_status(f"Paste failed: {e}", error=True)
 
@@ -311,11 +313,11 @@ class ToolPage(Page):
 
         status_row = ctk.CTkFrame(bottom, fg_color="transparent", corner_radius=0)
         status_row.pack(fill="x")
-        
+
         self.status = label(status_row, "Ready", 13, color=theme.MUTED,
                             wraplength=660, justify="left")
         self.status.pack(side="left", fill="x", expand=True)
-        
+
         self.undo_btn = secondary_button(status_row, "Undo", self._undo_remove, width=70)
 
         progress_row = ctk.CTkFrame(bottom, fg_color="transparent", corner_radius=0)
@@ -360,7 +362,7 @@ class ToolPage(Page):
 
         tools = ctk.CTkFrame(files_card, fg_color="transparent", corner_radius=0)
         tools.pack(fill="x", padx=16, pady=(0, 8))
-        
+
         self.filter_entry = ctk.CTkEntry(
             tools, textvariable=self.filter_var, height=30, corner_radius=0,
             font=theme.font(12), fg_color=theme.BG,
@@ -368,7 +370,7 @@ class ToolPage(Page):
             placeholder_text="Filter...",
         )
         self.filter_entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
-        
+
         self.sort_menu = option_menu(tools, self.SORT_MODES, self.sort_var,
                                      command=lambda *_: self.render_rows(), width=110)
         self.sort_menu.pack(side="left")
@@ -376,13 +378,13 @@ class ToolPage(Page):
 
         file_buttons = ctk.CTkFrame(files_card, fg_color="transparent", corner_radius=0)
         file_buttons.pack(side="bottom", fill="x", padx=16, pady=12)
-        
+
         self.add_files_btn = secondary_button(file_buttons, "Add", self.pick_files)
         self.add_files_btn.pack(side="left")
-        
+
         self.add_folder_btn = secondary_button(file_buttons, "Folder", self.pick_folder)
         self.add_folder_btn.pack(side="left", padx=8)
-        
+
         self.clear_btn = secondary_button(file_buttons, "Clear", self.clear_files, width=80)
         self.clear_btn.pack(side="right")
 
@@ -423,16 +425,16 @@ class ToolPage(Page):
         label(right, "Presets", 15, "bold").pack(fill="x", padx=16, pady=(18, 4))
         preset_row = ctk.CTkFrame(right, fg_color="transparent", corner_radius=0)
         preset_row.pack(fill="x", padx=16, pady=0)
-        
+
         self.preset_menu = option_menu(preset_row, ["Select Preset..."], self.preset_var, command=self.apply_preset)
         self.preset_menu.pack(side="left", fill="x", expand=True)
-        
+
         self.save_preset_btn = secondary_button(preset_row, "Save", self.prompt_save_preset, width=60)
         self.save_preset_btn.pack(side="right", padx=(8, 0))
-        
+
         self.delete_preset_btn = secondary_button(preset_row, "Del", self.delete_preset, width=50)
         self.delete_preset_btn.pack(side="right", padx=(4, 0))
-        
+
         self.refresh_preset_menu()
         # --------------------
 
@@ -440,7 +442,7 @@ class ToolPage(Page):
         self.settings.pack(fill="x", padx=16, pady=(14, 0))
 
         label(right, "Save to", 15, "bold").pack(fill="x", padx=16, pady=(18, 8))
-        
+
         self.output_label = label(right, "", 12, color=theme.MUTED)
         self.output_label.pack(fill="x", padx=16)
 
@@ -454,22 +456,22 @@ class ToolPage(Page):
 
         output_buttons = ctk.CTkFrame(right, fg_color="transparent", corner_radius=0)
         output_buttons.pack(fill="x", padx=16, pady=(0, 14))
-        
+
         self.output_btn = secondary_button(
             output_buttons, "Choose", self.pick_output, width=100
         )
         self.output_btn.pack(side="left")
-        
+
         self.recent_btn = secondary_button(
             output_buttons, "Recent", self.show_recent_menu, width=80
         )
         self.recent_btn.pack(side="left", padx=8)
-        
+
         self.presets_btn = secondary_button(
             output_buttons, "Saved", self.show_presets_menu, width=80
         )
         self.presets_btn.pack(side="left")
-        
+
         self.open_btn = secondary_button(
             output_buttons, "Open", self.open_output, width=70
         )
@@ -705,14 +707,14 @@ class ToolPage(Page):
     def remove_file(self, path):
         if self.runner.running or path not in self.files:
             return
-        
+
         index = self.files.index(path)
         self.files.remove(path)
-        
+
         self._undo_data = (path, index)
         self._undo_job = self.after(5000, self._hide_undo)
         self.undo_btn.pack(side="left", padx=(10, 0))
-        
+
         if path in self.row_widgets:
             self.row_widgets.pop(path).destroy()
         self.update_files_view()
@@ -730,7 +732,7 @@ class ToolPage(Page):
         path, index = self._undo_data
         self._undo_data = None
         self._hide_undo()
-        
+
         if path not in self.files:
             index = min(index, len(self.files))
             self.files.insert(index, path)
@@ -775,7 +777,7 @@ class ToolPage(Page):
         if hidden > 0:
             text += f" ({hidden} hidden)"
         self.count_label.configure(text=text)
-        
+
         if count:
             self.empty_frame.pack_forget()
         else:
@@ -790,13 +792,13 @@ class ToolPage(Page):
     def _set_output(self, folder):
         self.output_folder = folder
         self._remember_preset(str(folder))
-        
+
         folder_str = str(folder)
         if folder_str in self.recent_folders:
             self.recent_folders.remove(folder_str)
         self.recent_folders.insert(0, folder_str)
         del self.recent_folders[5:]
-        
+
         self.refresh_output_label()
 
     def _remember_preset(self, folder):
@@ -904,7 +906,6 @@ class ToolPage(Page):
             else:
                 output = self.output_folder or files[0].parent / "Convertor output"
 
-
         self.report_savings = False
         self.job_action = self.action_var.get()
         try:
@@ -985,11 +986,11 @@ class ToolPage(Page):
             self.progress.set(1)
             msg = self.done_message(result)
             self.set_status(msg)
-            
+
             speak_text = custom_msg.replace("{count}", str(done)).replace("file(s)", "files")
             play("success", sound_mode, speak_text)
             ToastNotification(self.winfo_toplevel(), "Success", msg, icon="✅")
-            
+
             if done and self.last_output:
                 history = config.get("history", [])
                 entry = {

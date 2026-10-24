@@ -5,6 +5,7 @@ from PIL import Image
 
 from core.appdata import open_path
 from core.audio import AUDIO_ALLOWED, describe_audio
+from core.brushes import preview_brush
 from core.common import format_time
 from core.docs import DOC_ALLOWED, describe_document
 from core.images import ALLOWED as IMAGE_EXTENSIONS, preview_image
@@ -16,10 +17,13 @@ from ui.asyncload import AsyncLoader
 from ui.widgets import label, secondary_button, shorten
 
 BOX = (520, 140)
+BRUSH_EXT = (".brush", ".brushset")
 
 
 def classify(path, prefer="image"):
     ext = Path(path).suffix.lower()
+    if ext in BRUSH_EXT:
+        return "brush"
     if ext == ".pdf":
         return "pdf"
     if ext in IMAGE_EXTENSIONS and ext in VIDEO_ALLOWED:
@@ -120,6 +124,8 @@ class PreviewPanel(ctk.CTkFrame):
         path = self.path
         if self.kind == "image":
             self.loader.submit(lambda: preview_image(path, BOX), self._image_ready)
+        elif self.kind == "brush":
+            self.loader.submit(lambda: preview_brush(path, BOX), self._brush_ready)
         elif self.kind == "pdf":
             self._load_pdf_page()
         elif self.kind == "video":
@@ -150,6 +156,22 @@ class PreviewPanel(ctk.CTkFrame):
             return
         if start is None and self.kind == "video":
             start = self.current_seconds()
+
+        if self.kind == "video":
+            try:
+                from ui.player import open_player
+                open_player(self.winfo_toplevel(), self.path, start, end)
+                return
+            except Exception as e:
+                try:
+                    from ui.widgets import ToastNotification
+                    ToastNotification(
+                        self.winfo_toplevel(), "Video player",
+                        f"Couldn't open: {str(e)[:100]}", icon="⚠️",
+                    )
+                except Exception:
+                    pass
+
         try:
             play_media(self.path, start, end, audio_only=(self.kind == "audio"))
         except OSError:
@@ -182,7 +204,7 @@ class PreviewPanel(ctk.CTkFrame):
             self.next_btn.pack(side="left")
             self.pages_btn.pack(side="left", padx=(8, 0))
             self.open_btn.pack(side="right")
-        elif kind in ("image", "doc"):
+        elif kind in ("image", "doc", "brush"):
             self.open_btn.pack(side="left")
 
     def _set_message(self, text):
@@ -224,6 +246,15 @@ class PreviewPanel(ctk.CTkFrame):
     def _image_ready(self, value, error):
         if error:
             self._set_message(shorten(str(error), 80))
+            return
+        picture, info = value
+        self._set_picture(picture)
+        self.info.configure(text=shorten(info, 70))
+
+    def _brush_ready(self, value, error):
+        if error or not value:
+            self._set_message("Couldn't read this brush file.")
+            self.info.configure(text="")
             return
         picture, info = value
         self._set_picture(picture)

@@ -1,7 +1,29 @@
-secret_config.py
-venv/
+# Build outputs
 build/
 dist/
+*.spec.bak
+*.zip
+*.7z
+
+# Python cache
 __pycache__/
 *.pyc
-.DS_Store
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# App data & secrets
+settings.json
+log.txt
+secret_config.py
+
+# Local binaries (mpv)
+bin/
+
+# Test files
+*.brush
+*.brushset
+*.sut
