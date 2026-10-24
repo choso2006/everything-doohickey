@@ -65,18 +65,30 @@ jobs:
         shell: bash
         run: |
           set -e
-          echo "Downloading portable mpv.app for macOS..."
-          mkdir -p bin/libs
+          echo "Downloading portable mpv binary for macOS..."
+          mkdir -p bin
           
-          URL="https://github.com/zhongfly/mpv-macos-builds/releases/latest/download/mpv-macos.zip"
+          # Official stolendata build for Apple Silicon
+          URL="https://laboratory.stolendata.net/~djinn/mpv_osx/mpv-arm64-latest.tar.gz"
           
-          curl -L -o mpv.zip "$URL"
-          unzip -q -o mpv.zip
+          curl -L -o mpv.tar.gz "$URL"
+          tar -xzf mpv.tar.gz
           
-          cp "mpv.app/Contents/MacOS/mpv" bin/mpv
+          # The tarball usually extracts to a folder like 'mpv-arm64-latest'
+          # Find the mpv binary and copy it
+          MPV_BIN=$(find . -name "mpv" -type f -perm +111 | head -1)
+          if [ -z "$MPV_BIN" ]; then
+            echo "ERROR: mpv binary not found in tarball"
+            exit 1
+          fi
+          cp "$MPV_BIN" bin/mpv
           chmod +x bin/mpv
           
-          cp -R "mpv.app/Contents/Frameworks/"* bin/libs/ || true
+          # Clean up the extracted folder
+          rm -rf mpv-*
+          
+          echo "=== mpv dependencies ==="
+          otool -L bin/mpv || true
 
       - name: Build
         shell: bash
