@@ -6,7 +6,7 @@ import threading
 import time
 from pathlib import Path
 from tkinter import messagebox
-from PIL import Image, ImageTk, ImageOps, Image as PILImage
+from PIL import Image, ImageTk, ImageOps
 
 from core.appdata import load_config, log_exception, save_config
 from core.media import stop_player
@@ -45,6 +45,12 @@ class App(Window):
         ctk.set_appearance_mode("dark" if is_dark else "light")
 
         super().__init__(fg_color=theme.BG_TOP)
+        
+        # HIDE MAIN WINDOW AND SHOW SPLASH
+        self.withdraw()
+        from ui.splash import SplashScreen
+        self.splash = SplashScreen(self)
+        self.splash.update()
         
         app_name = config.get("app_name", "Convertor")
         self.title(app_name)
@@ -88,11 +94,6 @@ class App(Window):
         self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
         self.bind("<Configure>", self._queue_bg_update)
         self._bg_job = None
-        self._bg_strip = None
-        self._bg_strip_resized = None
-        self._bg_strip_h = 0
-        self._bg_image = None
-        self._bg_item_id = None
 
         self._accent_cache = {}
         self._destroying = False
@@ -123,7 +124,15 @@ class App(Window):
         
         self.after(50, self._draw_bg)
 
+        # END SPLASH AND SHOW MAIN WINDOW
+        self.after(600, self._close_splash)
+        
         self.report_callback_exception = self._safe_callback_error
+
+    def _close_splash(self):
+        if hasattr(self, 'splash') and self.splash.winfo_exists():
+            self.splash.destroy()
+        self.deiconify()
 
     def _safe_callback_error(self, exc_type, exc_val, tb):
         if self._destroying:
@@ -244,7 +253,6 @@ class App(Window):
             del self.pages[name]
         self._accent_cache.clear()
         
-        self._bg_strip_h = 0
         self.show(self.current)
         self._draw_bg()
         self.save_settings()
@@ -287,12 +295,12 @@ class App(Window):
     def _queue_bg_update(self, event=None):
         if self._destroying:
             return
+        # If an update is already scheduled for the next frame, ignore this one.
         if self._bg_job:
-            try:
-                self.after_cancel(self._bg_job)
-            except Exception:
-                pass
-        self._bg_job = self.after(100, self._draw_bg)
+            return
+            
+        # Draw the background 15 milliseconds from now (approx 60 FPS)
+        self._bg_job = self.after(15, self._draw_bg)
 
     def _draw_bg(self):
         self._bg_job = None
@@ -310,25 +318,25 @@ class App(Window):
             return
         
         try:
-            if self._bg_strip is None:
-                base = PILImage.linear_gradient("L")
-                self._bg_strip = base.crop((0, 0, 1, 256))
-            
-            if self._bg_strip_h != h or self._bg_strip_resized is None:
-                self._bg_strip_resized = self._bg_strip.resize((1, h), PILImage.NEAREST)
-                self._bg_strip_h = h
+            self.bg_canvas.delete("bg_gradient")
             
             r1, g1, b1 = self._hex_to_rgb(theme.BG_TOP)
             r2, g2, b2 = self._hex_to_rgb(theme.BG_BOTTOM)
-            colored = ImageOps.colorize(self._bg_strip_resized, black=(r1, g1, b1), white=(r2, g2, b2))
-            final = colored.resize((w, h), PILImage.NEAREST)
             
-            self._bg_image = ImageTk.PhotoImage(final)
+            steps = 30
+            band_h = h / steps
             
-            if self._bg_item_id is None:
-                self._bg_item_id = self.bg_canvas.create_image(0, 0, image=self._bg_image, anchor="nw")
-            else:
-                self.bg_canvas.itemconfigure(self._bg_item_id, image=self._bg_image)
+            for i in range(steps):
+                ratio = i / (steps - 1)
+                r = int(r1 + (r2 - r1) * ratio)
+                g = int(g1 + (g2 - g1) * ratio)
+                b = int(b1 + (b2 - b1) * ratio)
+                color = f"#{r:02x}{g:02x}{b:02x}"
+                y1 = i * band_h
+                y2 = (i + 1) * band_h
+                self.bg_canvas.create_rectangle(
+                    0, y1, w, y2, fill=color, outline="", tags="bg_gradient"
+                )
         except Exception:
             pass
 

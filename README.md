@@ -10,7 +10,7 @@ a local file converter for windows and mac. built it because i hate ads and uplo
 - audio (convert, trim, fade, remove silence)
 - documents (word/excel to pdf via libreoffice)
 - files (split large files into chunks or join them back)
-- 25 themes to pick from
+- 24 themes to pick from
 - ctrl+v pastes screenshots right into the list
 
 ## how to run from source

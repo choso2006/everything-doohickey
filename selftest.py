@@ -3,8 +3,6 @@
 Run:  py selftest.py            (everything)
       py selftest.py app        (or: images, pdfs, video, audio, docs, files, helpers)
 Nothing in your own folders is touched. Results go in a temp folder.
-
-Also importable: `from selftest import run_all` returns (passed, failed, output, temp_dir)
 """
 import os
 import sys
@@ -58,50 +56,48 @@ def noisy(size, seed=1):
     return Image.frombytes("RGB", size, data)
 
 
-# ------------------------------------------------------------------ app logic
 def test_app():
-    from core.appdata import load_config, save_config
     from core.tools import tool_status
     from core.sounds import play
+    import core.appdata as appdata
 
     section("app logic")
 
-    test_data = {
-        "app_name": "Test GF Converter",
-        "sound_mode": "cute",
-        "custom_message": "Yay! {count} files done!",
-        "theme": "pink",
-    }
-    save_config(test_data)
-    loaded = load_config()
-    check("settings save & load", loaded.get("app_name") == "Test GF Converter")
-    check("settings custom message", loaded.get("custom_message") == "Yay! {count} files done!")
+    # Redirect app data to a temp folder so we NEVER touch the user's real settings
+    original_dir = appdata.data_dir
+    fake_dir = make("fake_appdata")
+    appdata.data_dir = lambda: fake_dir
 
-    original = load_config()
-    original.pop("app_name", None)
-    original.pop("sound_mode", None)
-    original.pop("custom_message", None)
-    original.pop("theme", None)
-    save_config(original)
+    try:
+        test_data = {
+            "app_name": "Test GF Converter",
+            "sound_mode": "cute",
+            "custom_message": "Yay! {count} files done!",
+            "theme": "pink",
+        }
+        appdata.save_config(test_data)
+        loaded = appdata.load_config()
+        check("settings save & load", loaded.get("app_name") == "Test GF Converter")
+        check("settings custom message", loaded.get("custom_message") == "Yay! {count} files done!")
 
-    config = load_config()
-    if "saved_presets" not in config:
-        config["saved_presets"] = {}
-    config["saved_presets"]["DummyPage"] = {"Test Preset": {"quality": 55, "format": "jpg"}}
-    save_config(config)
+        config = appdata.load_config()
+        if "saved_presets" not in config:
+            config["saved_presets"] = {}
+        config["saved_presets"]["DummyPage"] = {"Test Preset": {"quality": 55, "format": "jpg"}}
+        appdata.save_config(config)
 
-    reloaded = load_config()
-    saved_presets = reloaded.get("saved_presets", {})
-    check("preset saving works", "DummyPage" in saved_presets)
-    check("preset loading works", saved_presets["DummyPage"]["Test Preset"]["quality"] == 55)
+        reloaded = appdata.load_config()
+        saved_presets = reloaded.get("saved_presets", {})
+        check("preset saving works", "DummyPage" in saved_presets)
+        check("preset loading works", saved_presets["DummyPage"]["Test Preset"]["quality"] == 55)
 
-    builtins = {"WebP": {"action": "Convert"}}
-    merged = dict(builtins)
-    merged.update(saved_presets["DummyPage"])
-    check("preset merging logic", "WebP" in merged and "Test Preset" in merged)
-
-    del config["saved_presets"]["DummyPage"]
-    save_config(config)
+        builtins = {"WebP": {"action": "Convert"}}
+        merged = dict(builtins)
+        merged.update(saved_presets["DummyPage"])
+        check("preset merging logic", "WebP" in merged and "Test Preset" in merged)
+    finally:
+        # Restore the real data directory
+        appdata.data_dir = original_dir
 
     status = tool_status()
     check("tool_status returns dict", isinstance(status, dict))
@@ -123,7 +119,6 @@ def test_app():
         check("sound generation", False, str(e))
 
 
-# ------------------------------------------------------------------ images
 def test_images():
     from core import images as I
 
@@ -298,7 +293,6 @@ def _watermark(I, src, out, pos):
           f"changed area {box}")
 
 
-# -------------------------------------------------------------------- pdfs
 def test_pdfs():
     import pymupdf
     from core import pdfs as P
@@ -502,7 +496,6 @@ def test_pdfs():
     shutil.copyfile(P.watermark_pdf(src / "a.pdf", out, "DRAFT"), ROOT / "look_watermark.pdf")
 
 
-# ------------------------------------------------------------------- media
 def ff(*args):
     result = subprocess.run([find_tool("ffmpeg"), "-y", "-loglevel", "error", *args],
                             capture_output=True, text=True)
@@ -752,7 +745,6 @@ def _aconv(A, media, tone, out, fmt):
           str(media.probe(p)["duration"]))
 
 
-# -------------------------------------------------------------------- files
 def test_files():
     from core import files as F
 
@@ -783,7 +775,6 @@ def test_files():
     check("join file custom name", joined_named.name == "reassembled.bin", joined_named.name)
 
 
-# -------------------------------------------------------------------- docs
 def test_docs():
     from core import docs as D
 
@@ -835,7 +826,6 @@ def test_docs():
         check("cancel stops LibreOffice", True)
 
 
-# -------------------------------------------------------------------- misc
 def test_misc():
     from core.common import clean_name, format_stamp, format_time, to_seconds
     from core.batch import run_batch
@@ -882,7 +872,6 @@ SECTIONS = {
 
 
 def run_all(wanted=None):
-    """Programmatic entry point. Returns (passed, total, failed_list, temp_dir)."""
     global RESULTS, ROOT
     RESULTS = []
     ROOT = Path(tempfile.mkdtemp(prefix="convertor_selftest_"))

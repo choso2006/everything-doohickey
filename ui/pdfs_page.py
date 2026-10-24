@@ -190,9 +190,10 @@ class PdfsPage(ToolPage):
             )
             note(box, "One page per picture, in the order shown. 'Fit to the "
                       "picture' makes each page as tall as its picture needs, "
-                      "so nothing is stretched. A4 and Letter pages center "
-                      "each picture on a standard page. Animated pictures use "
-                      "their first frame.")
+                      "so nothing is stretched. 'Stitch' merges all pictures "
+                      "into one continuous long page. A4 and Letter pages "
+                      "center each picture on a standard page. Animated "
+                      "pictures use their first frame.")
 
         elif action == "Extract pages":
             pages_row()
@@ -475,19 +476,21 @@ class PdfsPage(ToolPage):
 # ------------------------------------------------------------------ picker
 
 class PagePicker(ctk.CTkToplevel):
-    """Visual drag-and-drop style PDF page organizer."""
-    
     def __init__(self, parent, pdf_path, initial="", on_apply=None):
         super().__init__(parent)
         self.pdf_path = Path(pdf_path)
         self.on_apply = on_apply
         self.selected_indices = []
+        self._thumbs = []
+        self._images = []
+        self._closed = False
 
         try:
-            with pymupdf.open(self.pdf_path) as doc:
-                if doc.needs_pass:
-                    raise ValueError("This PDF is locked.")
-                self.total = len(doc)
+            self.doc = pymupdf.open(self.pdf_path)
+            if self.doc.needs_pass:
+                self.doc.close()
+                raise ValueError("This PDF is locked.")
+            self.total = len(self.doc)
         except Exception as e:
             self.destroy()
             raise e
@@ -498,53 +501,38 @@ class PagePicker(ctk.CTkToplevel):
         self.transient(parent)
         self.grab_set()
 
-        # Main Layout
         self.grid_columnconfigure(0, weight=3)
         self.grid_columnconfigure(1, weight=2)
         self.grid_rowconfigure(0, weight=1)
 
-        # LEFT PANE: All Pages
         left = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
         left.grid(row=0, column=0, sticky="nsew", padx=(16, 8), pady=16)
         
         label(left, "Available Pages", 15, "bold").pack(anchor="w", pady=(0, 8))
         label(left, "Click a page to add it to the sequence.", 12, color=theme.MUTED).pack(anchor="w", pady=(0, 8))
         
-        self.grid_frame = SquaredScrollableFrame(
-            left, fg_color=theme.PANEL,
-        )
+        self.grid_frame = SquaredScrollableFrame(left, fg_color=theme.PANEL)
         self.grid_frame.pack(fill="both", expand=True)
         
-        self._all_images = []
         COLS = 4
         for i in range(self.total):
             holder = ctk.CTkFrame(self.grid_frame, fg_color="transparent", corner_radius=0)
             holder.grid(row=i // COLS, column=i % COLS, padx=4, pady=4, sticky="n")
             
-            thumb = self._make_thumb(i, 80)
-            self._all_images.append(thumb)
-            
-            btn = ctk.CTkButton(
-                holder, image=thumb, text="", width=80, height=80, corner_radius=0,
-                fg_color=theme.BG, hover_color=theme.HOVER,
-                command=lambda idx=i: self.add_page(idx)
-            )
+            btn = ctk.CTkButton(holder, text="...", width=80, height=80, corner_radius=0, fg_color=theme.BG, hover_color=theme.HOVER, command=lambda idx=i: self.add_page(idx))
             btn.pack()
             label(holder, f"Page {i+1}", 11, color=theme.MUTED).pack(pady=(2, 0))
+            self._thumbs.append(btn)
 
-        # RIGHT PANE: Current Sequence
         right = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
         right.grid(row=0, column=1, sticky="nsew", padx=(8, 16), pady=16)
         
         label(right, "Current Sequence", 15, "bold").pack(anchor="w", pady=(0, 8))
         label(right, "This is the order they will be saved.", 12, color=theme.MUTED).pack(anchor="w", pady=(0, 8))
         
-        self.seq_frame = SquaredScrollableFrame(
-            right, fg_color=theme.PANEL,
-        )
+        self.seq_frame = SquaredScrollableFrame(right, fg_color=theme.PANEL)
         self.seq_frame.pack(fill="both", expand=True)
 
-        # Bottom Buttons
         footer = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
         footer.grid(row=1, column=0, columnspan=2, sticky="ew", padx=16, pady=(0, 16))
         secondary_button(footer, "Cancel", self.destroy, width=90).pack(side="right")
@@ -553,13 +541,30 @@ class PagePicker(ctk.CTkToplevel):
 
         self._parse_initial(initial)
         self.render_sequence()
+        
+        # Load thumbnails in the background to prevent UI freeze
+        self.after(50, self._load_thumbs, 0)
 
-    def _make_thumb(self, index, width):
-        with pymupdf.open(self.pdf_path) as doc:
-            page = doc[index]
-            zoom = width / page.rect.width
+    def _load_thumbs(self, i):
+        if self._closed or i >= self.total:
+            return
+        try:
+            page = self.doc[i]
+            zoom = 80 / page.rect.width
             pix = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), alpha=False)
             img = PILImage.frombytes("RGB", (pix.width, pix.height), pix.samples)
+            ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(img.width, img.height))
+            self._images.append(ctk_img)
+            self._thumbs[i].configure(image=ctk_img, text="")
+        except Exception:
+            pass
+        self.after(1, self._load_thumbs, i + 1)
+
+    def _make_seq_thumb(self, index):
+        page = self.doc[index]
+        zoom = 50 / page.rect.width
+        pix = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), alpha=False)
+        img = PILImage.frombytes("RGB", (pix.width, pix.height), pix.samples)
         return ctk.CTkImage(light_image=img, dark_image=img, size=(img.width, img.height))
 
     def _parse_initial(self, text):
@@ -605,14 +610,13 @@ class PagePicker(ctk.CTkToplevel):
             row = ctk.CTkFrame(self.seq_frame, fg_color=theme.BG, corner_radius=0)
             row.pack(fill="x", pady=2, padx=2)
 
-            thumb = self._make_thumb(idx, 50)
+            thumb = self._make_seq_thumb(idx)
             lbl = ctk.CTkLabel(row, image=thumb, text="", corner_radius=0)
             lbl.image = thumb
             lbl.pack(side="left", padx=6, pady=6)
 
             label(row, f"Page {idx+1}", 13).pack(side="left", padx=4)
 
-            # Buttons
             small_button(row, "✕", lambda p=pos: self.remove_page(p)).pack(side="right", padx=2)
             small_button(row, ">", lambda p=pos: self.move_right(p)).pack(side="right", padx=2)
             small_button(row, "<", lambda p=pos: self.move_left(p)).pack(side="right", padx=2)
@@ -624,3 +628,12 @@ class PagePicker(ctk.CTkToplevel):
         if self.on_apply:
             self.on_apply(text)
         self.destroy()
+
+    def destroy(self):
+        self._closed = True
+        try:
+            if hasattr(self, 'doc'):
+                self.doc.close()
+        except Exception:
+            pass
+        super().destroy()

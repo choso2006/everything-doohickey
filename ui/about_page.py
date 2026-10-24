@@ -4,7 +4,6 @@ import subprocess
 import sys
 import os
 import shutil
-import io
 import traceback
 from pathlib import Path
 
@@ -23,6 +22,19 @@ TOOL_INFO = {
     "soffice": ("LibreOffice", "Needed for Documents page.", "--cask libreoffice", "TheDocumentFoundation.LibreOffice"),
     "tesseract": ("Tesseract OCR", "Reads text from scanned PDFs.", "tesseract", "UB-Mannheim.TesseractOCR"),
 }
+
+
+class _StdoutRedirector:
+    """Redirects print() statements to the UI text box in real-time."""
+    def __init__(self, callback):
+        self.callback = callback
+
+    def write(self, text):
+        if text:
+            self.callback(text)
+
+    def flush(self):
+        pass
 
 
 class AboutPage(Page):
@@ -46,8 +58,7 @@ class AboutPage(Page):
         label(self.files_card, "Your files", 15, "bold").pack(fill="x", padx=16, pady=(14, 4))
         label(
             self.files_card,
-            "Everything happens on this PC. Its all local man. Chill. "
-            "Your settings and a log of any errors are kept in this folder:",
+            "Its all local man. Chill. Your settings and a log of any errors are kept in this folder:",
             13, color=theme.MUTED, wraplength=720, justify="left",
         ).pack(fill="x", padx=16)
         label(self.files_card, shorten(str(data_dir()), 90), 13).pack(fill="x", padx=16, pady=(6, 0))
@@ -114,8 +125,7 @@ class AboutPage(Page):
         label(
             self.test_card,
             "Runs 250+ automated checks on the backend (takes about 50 seconds). "
-            "It creates temporary files to test conversions. Works in both the "
-            "source version and the packaged app.",
+            "It creates temporary files to test conversions. Works in both the source version and the packaged app.",
             13, color=theme.MUTED, wraplength=720, justify="left",
         ).pack(fill="x", padx=16)
 
@@ -124,7 +134,7 @@ class AboutPage(Page):
             fg_color=theme.BG, text_color=theme.TEXT, border_width=1, border_color=theme.BORDER,
         )
         self.test_output.pack(fill="x", padx=16, pady=(10, 10))
-        self.test_output.insert("1.0", "Click 'Run Self-Test' to start.\n")
+        self.test_output.insert("1.0", "Test output will appear here...\n")
 
         btn_row = ctk.CTkFrame(self.test_card, fg_color="transparent", corner_radius=0)
         btn_row.pack(fill="x", padx=16, pady=(0, 14))
@@ -138,7 +148,6 @@ class AboutPage(Page):
 
         self.refresh()
 
-    # ---------- Settings ----------
     def save_all_settings(self):
         config = load_config()
         config["app_name"] = self.name_var.get().strip() or "Convertor"
@@ -160,7 +169,6 @@ class AboutPage(Page):
 
         self.after(2000, reset_btn)
 
-    # ---------- Self-test (in-process) ----------
     def _append_test_log(self, text):
         self.test_output.insert("end", text)
         self.test_output.see("end")
@@ -172,34 +180,28 @@ class AboutPage(Page):
         self.temp_path = None
 
         def task():
-            old_argv = sys.argv[:]
             old_stdout = sys.stdout
-
-            buffer = io.StringIO()
-            sys.stdout = buffer
-            sys.argv = ["selftest", "app"]  # only 'app' section by default; fast
+            
+            # Redirect stdout to the UI in real time
+            sys.stdout = _StdoutRedirector(lambda text: self.after(0, self._append_test_log, text))
 
             try:
-                # Imported here so a broken selftest module doesn't crash the app on start
                 import importlib
                 if "selftest" in sys.modules:
                     selftest = importlib.reload(sys.modules["selftest"])
                 else:
                     import selftest
+                
                 passed, total, failed, root = selftest.run_all()
                 self.temp_path = str(root)
             except SystemExit:
                 passed, total, failed = 0, 0, []
             except Exception:
-                buffer.write("\nSelf-test crashed:\n")
-                buffer.write(traceback.format_exc())
+                self.after(0, self._append_test_log, f"\nSelf-test crashed:\n{traceback.format_exc()}\n")
                 passed, total, failed = 0, 0, []
             finally:
-                output = buffer.getvalue()
                 sys.stdout = old_stdout
-                sys.argv = old_argv
 
-            self.after(0, lambda: self._append_test_log(output))
             self.after(0, lambda: self._append_test_log(
                 f"\n--- Done. {passed} passed of {total}. ---\n"
             ))
@@ -226,7 +228,6 @@ class AboutPage(Page):
         except Exception as e:
             self._append_test_log(f"\n--- Failed to delete: {e} ---\n")
 
-    # ---------- Tools ----------
     def install_homebrew(self, btn):
         btn.configure(text="Check Terminal", state="disabled")
         cmd = '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'

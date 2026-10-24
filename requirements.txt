@@ -1,6 +1,6 @@
-customtkinter
-pillow
-pillow-heif
-pymupdf
-tkinterdnd2
-pytesseract
+customtkinter==5.2.2
+pillow==13.0.0
+pillow-heif==1.8.1
+pymupdf==1.27.2
+tkinterdnd2==0.4.2
+pytesseract==0.3.13

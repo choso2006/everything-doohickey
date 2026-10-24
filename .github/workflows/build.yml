@@ -8,12 +8,15 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
             name: windows
           - os: macos-latest
-            name: mac
+            name: mac-apple-silicon
+          - os: macos-15-intel
+            name: mac-intel
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +37,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           cd dist
-          ditto -c -k --sequesterRsrc --keepParent Convertor.app Convertor-mac.zip
+          ditto -c -k --sequesterRsrc --keepParent Convertor.app Convertor-${{ matrix.name }}.zip
 
       - name: Zip Windows app
         if: runner.os == 'Windows'
@@ -48,5 +51,4 @@ jobs:
         with:
           name: Convertor-${{ matrix.name }}
           path: |
-            dist/Convertor-mac.zip
-            dist/Convertor-windows.zip
+            dist/Convertor-*.zip

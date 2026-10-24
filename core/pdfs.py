@@ -238,9 +238,57 @@ def rotate_pages(pdf_path, output_folder, pages_text, degrees):
 def _save_compressed(doc, level, path):
     settings = COMPRESS_LEVELS[level]
     if settings:
-        doc.rewrite_images(
-            dpi_threshold=settings[0], dpi_target=settings[1], quality=settings[2]
-        )
+        dpi_threshold, dpi_target, quality = settings
+        for page in doc:
+            for img in page.get_images(full=True):
+                xref = img[0]
+                try:
+                    base_image = doc.extract_image(xref)
+                    img_pil = Image.open(io.BytesIO(base_image["image"]))
+                    
+                    # Calculate actual DPI
+                    current_dpi = 0
+                    rects = page.get_image_rects(xref)
+                    if rects:
+                        rect = rects[0]
+                        if rect.width > 0 and rect.height > 0:
+                            dpi_x = base_image["width"] / (rect.width / 72)
+                            dpi_y = base_image["height"] / (rect.height / 72)
+                            current_dpi = max(dpi_x, dpi_y)
+                    
+                    # Resize if DPI is too high
+                    if current_dpi > dpi_threshold and current_dpi > 0:
+                        scale = dpi_target / current_dpi
+                        new_size = (max(1, int(img_pil.width * scale)), max(1, int(img_pil.height * scale)))
+                        img_pil = img_pil.resize(new_size, Image.Resampling.LANCZOS)
+                    
+                    # Flatten alpha for JPEG
+                    if img_pil.mode in ("RGBA", "LA"):
+                        background = Image.new("RGB", img_pil.size, (255, 255, 255))
+                        background.paste(img_pil, mask=img_pil.split()[-1])
+                        img_pil = background
+                    elif img_pil.mode != "RGB":
+                        img_pil = img_pil.convert("RGB")
+                        
+                    out_io = io.BytesIO()
+                    img_pil.save(out_io, format="JPEG", quality=quality)
+                    new_bytes = out_io.getvalue()
+                    
+                    # Update the image stream in the PDF
+                    doc.update_stream(xref, new_bytes)
+                    doc.xref_set_key(xref, "Filter", "/DCTDecode")
+                    doc.xref_set_key(xref, "ColorSpace", "/DeviceRGB")
+                    doc.xref_set_key(xref, "BitsPerComponent", "8")
+                    doc.xref_set_key(xref, "Width", str(img_pil.width))
+                    doc.xref_set_key(xref, "Height", str(img_pil.height))
+                    
+                    # Remove transparency mask if it existed
+                    if "SMask" in doc.xref_get_keys(xref):
+                        doc.xref_set_key(xref, "SMask", "null")
+                        
+                except Exception:
+                    pass
+
     doc.save(path, garbage=4, deflate=True, clean=True)
 
 
