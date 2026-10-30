@@ -26,6 +26,44 @@ SPEEDS = ["0.5", "0.75", "1.25", "1.5", "2", "3"]
 class AudioPage(ToolPage):
     ACTIONS = ACTIONS
 
+    ACTION_DESCRIPTIONS = {
+        "Convert": {
+            "desc": "Convert audio files to modern, compatible formats.",
+            "ex": "WAV ➔ MP3, M4A ➔ OGG, FLAC ➔ AAC",
+            "icon": "🔁",
+        },
+        "Trim": {
+            "desc": "Cut out specific sections of an audio track.",
+            "ex": "Keep only 0:30 to 1:15 of a podcast",
+            "icon": "✂️",
+        },
+        "Merge": {
+            "desc": "Join multiple audio files into one continuous track.",
+            "ex": "Combine several tracks into a single album file",
+            "icon": "🔗",
+        },
+        "Change volume": {
+            "desc": "Boost, lower, or normalize the volume of audio files.",
+            "ex": "Increase volume by +6 dB, or normalize loudness for streaming",
+            "icon": "🔊",
+        },
+        "Change speed": {
+            "desc": "Speed up or slow down audio without pitch shift.",
+            "ex": "Listen to a podcast at 1.5x speed",
+            "icon": "⏩",
+        },
+        "Fade in/out": {
+            "desc": "Add smooth professional fades to the start or end.",
+            "ex": "Add a 2-second fade-out to the end of a song",
+            "icon": "🌅",
+        },
+        "Trim silence": {
+            "desc": "Remove dead air and background noise automatically.",
+            "ex": "Cut the silence before a singer starts, or the gap after",
+            "icon": "🔇",
+        },
+    }
+
     def __init__(self, parent, state=None):
         super().__init__(
             parent, "Audio",

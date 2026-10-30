@@ -12,6 +12,19 @@ ACTIONS = ["Split File", "Join Files"]
 class FilesPage(ToolPage):
     ACTIONS = ACTIONS
 
+    ACTION_DESCRIPTIONS = {
+        "Split File": {
+            "desc": "Split large files into smaller chunks for easier sharing.",
+            "ex": "5 GB video ➔ 5 × 1 GB parts",
+            "icon": "✂️",
+        },
+        "Join Files": {
+            "desc": "Join split parts back into the original file.",
+            "ex": "part001 + part002 ➔ original file",
+            "icon": "🔗",
+        },
+    }
+
     def __init__(self, parent, state=None):
         super().__init__(
             parent, "Files", 

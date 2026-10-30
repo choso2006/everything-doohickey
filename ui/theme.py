@@ -1,100 +1,106 @@
 import customtkinter as ctk
 import sys
 
+# --- THEMES ---
+# Fixed: Gently contrasting dark theme with a noticeable highlight
 DARK = {
-    "BG_TOP": "#1e1e21", "BG_BOTTOM": "#121214", "BG": "#18181a",
-    "SIDEBAR": "#151517", "PANEL": "#242427", "BORDER": "#303034",
-    "HOVER": "#2a2a2e", "SELECT": "#2c3b38", "TEXT": "#e8e8e8",
-    "MUTED": "#8c8c93", "ACCENT": "#3f8f84", "ACCENT_HOVER": "#357a70", "ERROR": "#d0645a",
+    "BG_TOP": "#18181b", "BG_BOTTOM": "#09090b", "BG": "#121214",
+    "SIDEBAR": "#111113", "PANEL": "#27272a", "BORDER": "#3f3f46",
+    "HOVER": "#3f3f46", "SELECT": "#4338ca", "TEXT": "#f4f4f5",
+    "MUTED": "#a1a1aa", "ACCENT": "#6366f1", "ACCENT_HOVER": "#4f46e5", "ERROR": "#ef4444",
 }
+# Fixed: Crisp light theme with a soft but visible blue highlight
 LIGHT = {
-    "BG_TOP": "#f8f8fa", "BG_BOTTOM": "#e4e4eb", "BG": "#eeeeef",
-    "SIDEBAR": "#e8e8ec", "PANEL": "#ffffff", "BORDER": "#d0d0d6",
-    "HOVER": "#ececef", "SELECT": "#d4ece6", "TEXT": "#1a1a1c",
-    "MUTED": "#6a6a72", "ACCENT": "#2f7d72", "ACCENT_HOVER": "#256359", "ERROR": "#b8463c",
+    "BG_TOP": "#f8fafc", "BG_BOTTOM": "#e2e8f0", "BG": "#f1f5f9",
+    "SIDEBAR": "#f1f5f9", "PANEL": "#ffffff", "BORDER": "#cbd5e1",
+    "HOVER": "#e2e8f0", "SELECT": "#bfdbfe", "TEXT": "#0f172a",
+    "MUTED": "#64748b", "ACCENT": "#4f46e5", "ACCENT_HOVER": "#4338ca", "ERROR": "#dc2626",
 }
-PINK = {
-    "BG_TOP": "#fff0f7", "BG_BOTTOM": "#ffd1e8", "BG": "#ffe1f0",
-    "SIDEBAR": "#ffd9eb", "PANEL": "#ffffff", "BORDER": "#ffb3d9",
-    "HOVER": "#ffcce6", "SELECT": "#ff99cc", "TEXT": "#4d0033",
-    "MUTED": "#a3668f", "ACCENT": "#ff3399", "ACCENT_HOVER": "#cc0066", "ERROR": "#e6005c",
-}
+
+# Fixed: True Frutiger Aero (Glossy Blue & Lime Green)
 AERO = {
     "BG_TOP": "#d4f0ff", "BG_BOTTOM": "#8ce6c1", "BG": "#b0ebd8",
     "SIDEBAR": "#ffffff", "PANEL": "#f0faff", "BORDER": "#81d4fa",
     "HOVER": "#b3e5fc", "SELECT": "#69f0ae", "TEXT": "#004b6b",
     "MUTED": "#5599bb", "ACCENT": "#00c853", "ACCENT_HOVER": "#009624", "ERROR": "#ff5c5c",
 }
+
+PINK = {
+    "BG_TOP": "#fdf2f8", "BG_BOTTOM": "#fbcfe8", "BG": "#fce7f3",
+    "SIDEBAR": "#fdf2f8", "PANEL": "#ffffff", "BORDER": "#fbcfe8",
+    "HOVER": "#fce7f3", "SELECT": "#f472b6", "TEXT": "#831843",
+    "MUTED": "#9d174d", "ACCENT": "#ec4899", "ACCENT_HOVER": "#db2777", "ERROR": "#e11d48",
+}
 AQUA = {
-    "BG_TOP": "#e0ffff", "BG_BOTTOM": "#00ced1", "BG": "#b0e0e6",
-    "SIDEBAR": "#afeeee", "PANEL": "#ffffff", "BORDER": "#48d1cc",
-    "HOVER": "#40e0d0", "SELECT": "#00fa9a", "TEXT": "#003333",
-    "MUTED": "#008b8b", "ACCENT": "#00bfff", "ACCENT_HOVER": "#1e90ff", "ERROR": "#ff4500",
+    "BG_TOP": "#ecfeff", "BG_BOTTOM": "#a5f3fc", "BG": "#cffafe",
+    "SIDEBAR": "#cffafe", "PANEL": "#ffffff", "BORDER": "#67e8f9",
+    "HOVER": "#a5f3fc", "SELECT": "#22d3ee", "TEXT": "#164e63",
+    "MUTED": "#0891b2", "ACCENT": "#06b6d4", "ACCENT_HOVER": "#0891b2", "ERROR": "#ef4444",
 }
 BLUE = {
     "BG_TOP": "#1e3a8a", "BG_BOTTOM": "#0f172a", "BG": "#172554",
-    "SIDEBAR": "#1e293b", "PANEL": "#0f172a", "BORDER": "#334155",
-    "HOVER": "#334155", "SELECT": "#1d4ed8", "TEXT": "#e2e8f0",
+    "SIDEBAR": "#0f172a", "PANEL": "#1e293b", "BORDER": "#334155",
+    "HOVER": "#334155", "SELECT": "#2563eb", "TEXT": "#e2e8f0",
     "MUTED": "#94a3b8", "ACCENT": "#3b82f6", "ACCENT_HOVER": "#2563eb", "ERROR": "#ef4444",
 }
 CYBERPUNK = {
-    "BG_TOP": "#2b0033", "BG_BOTTOM": "#000000", "BG": "#1a0022",
-    "SIDEBAR": "#110015", "PANEL": "#220030", "BORDER": "#4a004a",
-    "HOVER": "#3a003a", "SELECT": "#550055", "TEXT": "#00ffff",
-    "MUTED": "#ff00ff", "ACCENT": "#fcee0a", "ACCENT_HOVER": "#ff00ff", "ERROR": "#ff003c",
+    "BG_TOP": "#120024", "BG_BOTTOM": "#000000", "BG": "#0a0014",
+    "SIDEBAR": "#05000a", "PANEL": "#280044", "BORDER": "#4a004a",
+    "HOVER": "#3a003a", "SELECT": "#7e22ce", "TEXT": "#00ffff",
+    "MUTED": "#ff00ff", "ACCENT": "#fcee0a", "ACCENT_HOVER": "#e5d509", "ERROR": "#ff003c",
 }
 GOLDEN = {
-    "BG_TOP": "#fffbeb", "BG_BOTTOM": "#fcd34d", "BG": "#fde68a",
-    "SIDEBAR": "#fef3c7", "PANEL": "#ffffff", "BORDER": "#fbbf24",
-    "HOVER": "#fcd34d", "SELECT": "#f59e0b", "TEXT": "#451a03",
+    "BG_TOP": "#fffbeb", "BG_BOTTOM": "#fde68a", "BG": "#fef3c7",
+    "SIDEBAR": "#fffbeb", "PANEL": "#ffffff", "BORDER": "#fcd34d",
+    "HOVER": "#fef3c7", "SELECT": "#fcd34d", "TEXT": "#451a03",
     "MUTED": "#92400e", "ACCENT": "#d97706", "ACCENT_HOVER": "#b45309", "ERROR": "#dc2626",
 }
 GREEN = {
-    "BG_TOP": "#064e3b", "BG_BOTTOM": "#022c22", "BG": "#043b2b",
-    "SIDEBAR": "#022c22", "PANEL": "#064e3b", "BORDER": "#047857",
-    "HOVER": "#065f46", "SELECT": "#059669", "TEXT": "#ecfdf5",
-    "MUTED": "#6ee7b7", "ACCENT": "#10b981", "ACCENT_HOVER": "#059669", "ERROR": "#f87171",
+    "BG_TOP": "#052e16", "BG_BOTTOM": "#022c22", "BG": "#064e3b",
+    "SIDEBAR": "#022c22", "PANEL": "#14532d", "BORDER": "#166534",
+    "HOVER": "#166534", "SELECT": "#15803d", "TEXT": "#ecfdf5",
+    "MUTED": "#86efac", "ACCENT": "#22c55e", "ACCENT_HOVER": "#16a34a", "ERROR": "#f87171",
 }
 INFERNO = {
     "BG_TOP": "#450a0a", "BG_BOTTOM": "#000000", "BG": "#2a0505",
     "SIDEBAR": "#1a0000", "PANEL": "#3a0808", "BORDER": "#7f1d1d",
-    "HOVER": "#5a0c0c", "SELECT": "#991b1b", "TEXT": "#fef2f2",
+    "HOVER": "#5a0c0c", "SELECT": "#ea580c", "TEXT": "#fef2f2",
     "MUTED": "#fca5a5", "ACCENT": "#f97316", "ACCENT_HOVER": "#ea580c", "ERROR": "#ef4444",
 }
 ORANGE = {
     "BG_TOP": "#fff7ed", "BG_BOTTOM": "#fed7aa", "BG": "#ffedd5",
-    "SIDEBAR": "#ffedd5", "PANEL": "#ffffff", "BORDER": "#fdba74",
-    "HOVER": "#fed7aa", "SELECT": "#f97316", "TEXT": "#431407",
+    "SIDEBAR": "#fff7ed", "PANEL": "#ffffff", "BORDER": "#fdba74",
+    "HOVER": "#ffedd5", "SELECT": "#fdba74", "TEXT": "#431407",
     "MUTED": "#9a3412", "ACCENT": "#ea580c", "ACCENT_HOVER": "#c2410c", "ERROR": "#dc2626",
 }
 PURPLE = {
     "BG_TOP": "#4c1d95", "BG_BOTTOM": "#2e1065", "BG": "#3b0764",
-    "SIDEBAR": "#2e1065", "PANEL": "#4c1d95", "BORDER": "#6b21a8",
-    "HOVER": "#581c87", "SELECT": "#7e22ce", "TEXT": "#f3e8ff",
+    "SIDEBAR": "#2e1065", "PANEL": "#5b21b6", "BORDER": "#6b21a8",
+    "HOVER": "#6b21a8", "SELECT": "#7e22ce", "TEXT": "#f3e8ff",
     "MUTED": "#d8b4fe", "ACCENT": "#a855f7", "ACCENT_HOVER": "#9333ea", "ERROR": "#f87171",
 }
 PURPPINK = {
     "BG_TOP": "#4a044e", "BG_BOTTOM": "#2e1065", "BG": "#3b0764",
-    "SIDEBAR": "#2e1065", "PANEL": "#4a044e", "BORDER": "#86198f",
-    "HOVER": "#701a75", "SELECT": "#a21caf", "TEXT": "#fdf4ff",
+    "SIDEBAR": "#2e1065", "PANEL": "#701a75", "BORDER": "#86198f",
+    "HOVER": "#86198f", "SELECT": "#c026d3", "TEXT": "#fdf4ff",
     "MUTED": "#f0abfc", "ACCENT": "#d946ef", "ACCENT_HOVER": "#c026d3", "ERROR": "#f87171",
 }
 RED = {
     "BG_TOP": "#7f1d1d", "BG_BOTTOM": "#450a0a", "BG": "#5a0c0c",
-    "SIDEBAR": "#450a0a", "PANEL": "#7f1d1d", "BORDER": "#991b1b",
-    "HOVER": "#5a0c0c", "SELECT": "#b91c1c", "TEXT": "#fef2f2",
+    "SIDEBAR": "#450a0a", "PANEL": "#991b1b", "BORDER": "#b91c1c",
+    "HOVER": "#b91c1c", "SELECT": "#dc2626", "TEXT": "#fef2f2",
     "MUTED": "#fca5a5", "ACCENT": "#ef4444", "ACCENT_HOVER": "#dc2626", "ERROR": "#fbbf24",
 }
 WHITE = {
-    "BG_TOP": "#ffffff", "BG_BOTTOM": "#f3f4f6", "BG": "#f9fafb",
-    "SIDEBAR": "#f3f4f6", "PANEL": "#ffffff", "BORDER": "#e5e7eb",
+    "BG_TOP": "#ffffff", "BG_BOTTOM": "#e5e7eb", "BG": "#f9fafb",
+    "SIDEBAR": "#f9fafb", "PANEL": "#ffffff", "BORDER": "#d1d5db",
     "HOVER": "#f3f4f6", "SELECT": "#e0e7ff", "TEXT": "#111827",
     "MUTED": "#6b7280", "ACCENT": "#4f46e5", "ACCENT_HOVER": "#4338ca", "ERROR": "#ef4444",
 }
 YELLOW = {
     "BG_TOP": "#fefce8", "BG_BOTTOM": "#fef08a", "BG": "#fef9c3",
-    "SIDEBAR": "#fef9c3", "PANEL": "#ffffff", "BORDER": "#fde047",
-    "HOVER": "#fef08a", "SELECT": "#eab308", "TEXT": "#422006",
+    "SIDEBAR": "#fefce8", "PANEL": "#ffffff", "BORDER": "#fde047",
+    "HOVER": "#fef9c3", "SELECT": "#fde047", "TEXT": "#422006",
     "MUTED": "#854d0e", "ACCENT": "#ca8a04", "ACCENT_HOVER": "#a16207", "ERROR": "#dc2626",
 }
 RAINBOW = {
@@ -105,39 +111,38 @@ RAINBOW = {
 }
 NEON = {
     "BG_TOP": "#000000", "BG_BOTTOM": "#050505", "BG": "#050505",
-    "SIDEBAR": "#000000", "PANEL": "#0a0a0a",
-    "BORDER": "#1a5c1a",
+    "SIDEBAR": "#000000", "PANEL": "#0a0a0a", "BORDER": "#1a5c1a",
     "HOVER": "#151515", "SELECT": "#2a2a2a", "TEXT": "#39ff14",
     "MUTED": "#cc44cc", "ACCENT": "#ff00ff", "ACCENT_HOVER": "#cc00cc", "ERROR": "#ff0000",
 }
 BLACK = {
     "BG_TOP": "#000000", "BG_BOTTOM": "#0a0a0a", "BG": "#050505",
-    "SIDEBAR": "#000000", "PANEL": "#111111", "BORDER": "#222222",
-    "HOVER": "#1a1a1a", "SELECT": "#2a2a2a", "TEXT": "#ffffff",
-    "MUTED": "#888888", "ACCENT": "#555555", "ACCENT_HOVER": "#777777", "ERROR": "#ff3333",
+    "SIDEBAR": "#000000", "PANEL": "#18181b", "BORDER": "#27272a",
+    "HOVER": "#27272a", "SELECT": "#3f3f46", "TEXT": "#ffffff",
+    "MUTED": "#a1a1aa", "ACCENT": "#6366f1", "ACCENT_HOVER": "#4f46e5", "ERROR": "#ff3333",
 }
 MINT = {
-    "BG_TOP": "#e6fffa", "BG_BOTTOM": "#81e6d9", "BG": "#b2f5ea",
-    "SIDEBAR": "#ffffff", "PANEL": "#ffffff", "BORDER": "#4fd1c5",
-    "HOVER": "#b2f5ea", "SELECT": "#38b2ac", "TEXT": "#234e52",
-    "MUTED": "#319795", "ACCENT": "#38b2ac", "ACCENT_HOVER": "#319795", "ERROR": "#e53e3e",
+    "BG_TOP": "#f0fdf4", "BG_BOTTOM": "#bbf7d0", "BG": "#dcfce7",
+    "SIDEBAR": "#f0fdf4", "PANEL": "#ffffff", "BORDER": "#86efac",
+    "HOVER": "#dcfce7", "SELECT": "#6ee7b7", "TEXT": "#064e3b",
+    "MUTED": "#047857", "ACCENT": "#10b981", "ACCENT_HOVER": "#059669", "ERROR": "#ef4444",
 }
 LAVENDER = {
     "BG_TOP": "#faf5ff", "BG_BOTTOM": "#e9d8fd", "BG": "#f3e8ff",
-    "SIDEBAR": "#ffffff", "PANEL": "#ffffff", "BORDER": "#d6bcfa",
-    "HOVER": "#e9d8fd", "SELECT": "#b794f4", "TEXT": "#44337a",
+    "SIDEBAR": "#faf5ff", "PANEL": "#ffffff", "BORDER": "#d6bcfa",
+    "HOVER": "#f3e8ff", "SELECT": "#c4b5fd", "TEXT": "#44337a",
     "MUTED": "#805ad5", "ACCENT": "#9f7aea", "ACCENT_HOVER": "#805ad5", "ERROR": "#e53e3e",
 }
 MIDNIGHT = {
     "BG_TOP": "#0f172a", "BG_BOTTOM": "#020617", "BG": "#0b1120",
     "SIDEBAR": "#020617", "PANEL": "#1e293b", "BORDER": "#334155",
-    "HOVER": "#1e293b", "SELECT": "#475569", "TEXT": "#f8fafc",
+    "HOVER": "#334155", "SELECT": "#475569", "TEXT": "#f8fafc",
     "MUTED": "#94a3b8", "ACCENT": "#fbbf24", "ACCENT_HOVER": "#f59e0b", "ERROR": "#ef4444",
 }
 ROSE_GOLD = {
     "BG_TOP": "#fff5f5", "BG_BOTTOM": "#fed7d7", "BG": "#fed7e2",
-    "SIDEBAR": "#ffffff", "PANEL": "#ffffff", "BORDER": "#fbb6ce",
-    "HOVER": "#fbb6ce", "SELECT": "#ed64a6", "TEXT": "#521b41",
+    "SIDEBAR": "#fff5f5", "PANEL": "#ffffff", "BORDER": "#fbb6ce",
+    "HOVER": "#fed7e2", "SELECT": "#f9a8d4", "TEXT": "#521b41",
     "MUTED": "#97266d", "ACCENT": "#b83280", "ACCENT_HOVER": "#97266d", "ERROR": "#c53030",
 }
 MATRIX = {
@@ -148,31 +153,39 @@ MATRIX = {
 }
 
 PALETTES = {
-    "dark": DARK, "light": LIGHT, "pink": PINK, "aero": AERO,
-    "aqua": AQUA, "blue": BLUE, "cyberpunk": CYBERPUNK, "golden": GOLDEN,
-    "green": GREEN, "inferno": INFERNO, "orange": ORANGE, "purple": PURPLE,
+    "dark": DARK, "light": LIGHT, "aero": AERO,
+    "pink": PINK, "aqua": AQUA, "blue": BLUE, "cyberpunk": CYBERPUNK, 
+    "golden": GOLDEN, "green": GREEN, "inferno": INFERNO, "orange": ORANGE, "purple": PURPLE,
     "purppink": PURPPINK, "red": RED, "white": WHITE, "yellow": YELLOW,
     "rainbow": RAINBOW, "neon": NEON, "black": BLACK,
     "mint": MINT, "lavender": LAVENDER, "midnight": MIDNIGHT, "rosegold": ROSE_GOLD, "matrix": MATRIX,
 }
 
 LIGHT_THEMES = {
-    "light", "pink", "aero", "aqua", "golden", "orange", "white", "yellow", "rainbow",
+    "light", "aero", "pink", "aqua", "golden", "orange", "white", "yellow", "rainbow",
     "mint", "lavender", "rosegold"
 }
 
+# GLOBAL DESIGN VARIABLES
 _mode = "dark"
+RADIUS = 0
+BORDER_WIDTH = 1
 
 for _k, _v in DARK.items():
     globals()[_k] = _v
 
 
 def use(mode):
-    global _mode
+    global _mode, RADIUS, BORDER_WIDTH
     mode = str(mode).lower()
     if mode not in PALETTES:
         mode = "dark"
     _mode = mode
+    
+    # Reverted to squared corners for all themes (since sleek is removed)
+    RADIUS = 0
+    BORDER_WIDTH = 1
+
     for key, value in PALETTES[_mode].items():
         globals()[key] = value
 

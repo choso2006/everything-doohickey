@@ -14,9 +14,9 @@ from core.pdfs import describe_pdf, render_pdf_page
 from core.video import VIDEO_ALLOWED, describe_video
 from ui import theme
 from ui.asyncload import AsyncLoader
-from ui.widgets import label, secondary_button, shorten
+from ui.widgets import label, secondary_button, shorten, SmoothScrollableFrame
 
-BOX = (520, 140)
+BOX = (1920, 1080) # High resolution so it stays sharp when scaled
 BRUSH_EXT = (".brush", ".brushset")
 
 
@@ -40,14 +40,11 @@ def classify(path, prefer="image"):
 
 
 class PreviewPanel(ctk.CTkFrame):
-    HEIGHT = 244
-
     def __init__(self, parent, prefer="image"):
         super().__init__(
-            parent, fg_color=theme.PANEL, corner_radius=0,
-            border_width=1, border_color=theme.BORDER, height=self.HEIGHT,
+            parent, fg_color=theme.PANEL, corner_radius=theme.RADIUS,
+            border_width=theme.BORDER_WIDTH, border_color=theme.BORDER
         )
-        self.pack_propagate(False)
         self.prefer = prefer
         self.path = None
         self.kind = None
@@ -67,11 +64,20 @@ class PreviewPanel(ctk.CTkFrame):
         self.info = label(top, "", 12, color=theme.MUTED)
         self.info.pack(side="right")
 
-        self.picture = ctk.CTkLabel(
-            self, text="", font=theme.font(13), text_color=theme.MUTED,
-            height=BOX[1], image=None, corner_radius=0,
+        # Using SmoothScrollableFrame to match the files pane exactly
+        self.scroll_frame = SmoothScrollableFrame(
+            self, fg_color="transparent", 
+            scrollbar_button_color=theme.BORDER, 
+            scrollbar_button_hover_color=theme.MUTED
         )
-        self.picture.pack(fill="both", expand=True, padx=16, pady=6)
+        self.scroll_frame.pack(fill="both", expand=True, padx=16, pady=6)
+
+        self.picture = ctk.CTkLabel(
+            self.scroll_frame, text="", font=theme.font(13), text_color=theme.MUTED,
+            image=None, corner_radius=0, anchor="center"
+        )
+        self.picture.pack(fill="both", expand=True)
+        
         blank = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
         self._blank = ctk.CTkImage(light_image=blank, dark_image=blank, size=(1, 1))
 
@@ -235,8 +241,19 @@ class PreviewPanel(ctk.CTkFrame):
 
     def _set_picture(self, pil_image):
         self._stop_loading_animation()
+        
+        # Dynamically get the exact size of the visible canvas
+        w = self.scroll_frame._parent_canvas.winfo_width()
+        h = self.scroll_frame._parent_canvas.winfo_height()
+        
+        if w > 20 and h > 20:
+            box = (w - 20, h - 20) # Account for padding/scrollbars
+        else:
+            box = (400, 300) # Fallback
+            
         shown = pil_image.copy()
-        shown.thumbnail(BOX, Image.Resampling.LANCZOS)
+        shown.thumbnail(box, Image.Resampling.LANCZOS)
+        
         fresh = ctk.CTkImage(
             light_image=shown, dark_image=shown, size=(shown.width, shown.height)
         )
@@ -263,7 +280,7 @@ class PreviewPanel(ctk.CTkFrame):
     def _load_pdf_page(self):
         path, index = self.path, self.page_index
         self.loader.submit(
-            lambda: (render_pdf_page(path, index, 360), describe_pdf(path)),
+            lambda: (render_pdf_page(path, index, 1000), describe_pdf(path)),
             self._pdf_ready,
         )
 

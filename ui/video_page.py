@@ -60,6 +60,79 @@ class VideoPage(ToolPage):
     ACTIONS = ACTIONS
     PREVIEW_PREFER = "video"
 
+    ACTION_DESCRIPTIONS = {
+        "Convert": {
+            "desc": "Convert videos between popular formats for any device.",
+            "ex": "MOV ➔ MP4 for Windows, MKV ➔ WebM for the web",
+            "icon": "🔁",
+        },
+        "Compress": {
+            "desc": "Shrink video file sizes while balancing visual quality.",
+            "ex": "Turn a 500 MB video into a 50 MB easily-shareable clip",
+            "icon": "🗜️",
+        },
+        "Compress to size": {
+            "desc": "Target a specific file size using smart two-pass encoding.",
+            "ex": "Compress a video to exactly fit under Discord's 25MB limit",
+            "icon": "📉",
+        },
+        "Extract audio": {
+            "desc": "Separate the audio track from any video file.",
+            "ex": "Rip the soundtrack from a movie or save a voice memo",
+            "icon": "🎵",
+        },
+        "Trim": {
+            "desc": "Cut out unwanted sections and keep only the best parts.",
+            "ex": "Trim the first 5 seconds of silence off a clip",
+            "icon": "✂️",
+        },
+        "Merge": {
+            "desc": "Join multiple video clips together into one seamless file.",
+            "ex": "Combine part 1, part 2, and part 3 into a single movie",
+            "icon": "🔗",
+        },
+        "Make a GIF": {
+            "desc": "Turn any video moment into a high-quality animated GIF.",
+            "ex": "Create a 3-second reaction GIF for a meme",
+            "icon": "🎞️",
+        },
+        "Change speed": {
+            "desc": "Speed up or slow down video and audio without pitch shift.",
+            "ex": "Make a 2x fast-forward timelapse or a 0.5x slow-mo",
+            "icon": "⏩",
+        },
+        "Rotate or flip": {
+            "desc": "Rotate or mirror videos to fix orientation.",
+            "ex": "Fix a sideways phone recording, or mirror a video horizontally",
+            "icon": "🔄",
+        },
+        "Crop to shape": {
+            "desc": "Crop or pad the video to a specific aspect ratio.",
+            "ex": "Crop a landscape video to 9:16 for TikTok/Reels",
+            "icon": "🖼️",
+        },
+        "Replace audio": {
+            "desc": "Swap or mix the video's audio with a new music track.",
+            "ex": "Put your favorite song over a silent video",
+            "icon": "🎧",
+        },
+        "Remove sound": {
+            "desc": "Mute the video instantly without re-encoding.",
+            "ex": "Create a silent background clip for a project",
+            "icon": "🔇",
+        },
+        "Save a picture": {
+            "desc": "Capture a perfect still frame from any video.",
+            "ex": "Grab a high-quality thumbnail or a funny freeze-frame",
+            "icon": "📸",
+        },
+        "Save pictures every few seconds": {
+            "desc": "Extract frames at regular intervals to create a slideshow.",
+            "ex": "Save one frame every 5 seconds for a storyboard",
+            "icon": "🖼️",
+        },
+    }
+
     def __init__(self, parent, state=None):
         super().__init__(
             parent, "Video",

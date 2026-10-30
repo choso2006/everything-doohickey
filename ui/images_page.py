@@ -34,6 +34,54 @@ KEEP_NOTE = (
 class ImagesPage(ToolPage):
     ACTIONS = ACTIONS
 
+    ACTION_DESCRIPTIONS = {
+        "Convert": {
+            "desc": "Convert images to different file formats seamlessly.",
+            "ex": "HEIC ➔ JPG, PNG ➔ WebP, AVIF ➔ PNG",
+            "icon": "🔁",
+        },
+        "Compress": {
+            "desc": "Reduce image file size with adjustable quality settings.",
+            "ex": "Shrink a 10MB photo to 2MB for easy sharing",
+            "icon": "🗜️",
+        },
+        "Compress to size": {
+            "desc": "Automatically find the best quality to fit a specific file size limit.",
+            "ex": "Make every photo under 500 KB for a website",
+            "icon": "📉",
+        },
+        "Resize": {
+            "desc": "Scale images by width, height, percentage, or exact dimensions.",
+            "ex": "Resize 4K wallpapers to 1080p, or shrink thumbnails",
+            "icon": "📐",
+        },
+        "Rotate or flip": {
+            "desc": "Fix sideways photos or mirror images horizontally/vertically.",
+            "ex": "Fix a sideways phone photo, or mirror a selfie",
+            "icon": "🔄",
+        },
+        "Adjust colors": {
+            "desc": "Fine-tune brightness, contrast, saturation, or convert to black & white.",
+            "ex": "Brighten a dark photo, or make it grayscale",
+            "icon": "🎨",
+        },
+        "Watermark": {
+            "desc": "Add custom text watermarks to protect your artwork.",
+            "ex": "Stamp '© Your Name' on a portfolio piece",
+            "icon": "💧",
+        },
+        "Strip metadata": {
+            "desc": "Remove hidden camera data, GPS location, and EXIF info.",
+            "ex": "Clean EXIF data before posting a photo online",
+            "icon": "🧹",
+        },
+        "Make animation": {
+            "desc": "Combine multiple images into a looping GIF, WebP, or APNG.",
+            "ex": "5 PNG frames ➔ a looping GIF animation",
+            "icon": "🎞️",
+        },
+    }
+
     def __init__(self, parent, state=None):
         super().__init__(
             parent, "Images",

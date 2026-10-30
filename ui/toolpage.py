@@ -19,9 +19,9 @@ from ui import theme
 from ui.preview import PreviewPanel
 from ui.runner import JobRunner
 from ui.widgets import (
-    Page, card, label, option_menu, primary_button, secondary_button,
+    Page, card, label, option_menu, action_button, primary_button, secondary_button,
     shorten, small_button, SquaredScrollableFrame, ToastNotification,
-    SquaredInputDialog
+    SquaredInputDialog, DashedSeparator
 )
 
 
@@ -30,6 +30,7 @@ class ToolPage(Page):
     PREVIEW_PREFER = "image"
     SORT_MODES = ["Added", "Name", "Size", "Date"]
     MAX_PRESETS = 8
+    ACTION_DESCRIPTIONS = {}
 
     BUILTIN_PRESETS = {
         "ImagesPage": {
@@ -68,7 +69,7 @@ class ToolPage(Page):
         self.last_output = None
         self.on_save = None
         self._started_at = 0.0
-
+        
         self._undo_job = None
         self._undo_data = None
         self.recent_folders = list(self.state.get("recent_folders", []))
@@ -88,7 +89,7 @@ class ToolPage(Page):
         self.sort_var = ctk.StringVar(value=self.state.get("sort", "Added"))
         self.filter_var = ctk.StringVar(value="")
         self.same_folder_var = ctk.BooleanVar(value=self.state.get("same_folder", False))
-
+        
         self.preset_var = ctk.StringVar(value="Select Preset...")
 
         self.runner = JobRunner(self, self.on_file, self.on_progress, self.on_finished)
@@ -109,7 +110,7 @@ class ToolPage(Page):
         count = len(result.done)
         config = load_config()
         custom = config.get("custom_message", "Done! {count} files converted.")
-
+        
         try:
             text = custom.replace("{count}", str(count))
         except Exception:
@@ -192,9 +193,6 @@ class ToolPage(Page):
                     pass
 
         self.build_settings()
-        if self.rows_ordered != self.is_ordered():
-            self.render_rows()
-        # Keep the dropdown on this preset so Delete knows what to target.
 
     def prompt_save_preset(self):
         dialog = SquaredInputDialog(self, "Save Preset", "Name this preset:")
@@ -218,7 +216,6 @@ class ToolPage(Page):
 
         self.set_status(f"Saved preset: {name}")
 
-        # Refresh the list, then select the newly-saved preset without firing apply_preset
         presets = list(self.get_all_presets().keys())
         self.preset_menu.configure(values=["Select Preset..."] + presets, command=None)
         self.preset_var.set(name)
@@ -323,7 +320,7 @@ class ToolPage(Page):
         progress_row = ctk.CTkFrame(bottom, fg_color="transparent", corner_radius=0)
         progress_row.pack(fill="x", pady=(8, 12))
         self.progress = ctk.CTkProgressBar(
-            progress_row, height=8, corner_radius=0,
+            progress_row, height=8, corner_radius=theme.RADIUS,
             fg_color=theme.BORDER, progress_color=theme.ACCENT,
         )
         self.progress.pack(side="left", fill="x", expand=True)
@@ -333,26 +330,34 @@ class ToolPage(Page):
 
         buttons = ctk.CTkFrame(bottom, fg_color="transparent", corner_radius=0)
         buttons.pack(fill="x")
-        self.start_btn = primary_button(buttons, "Start", self.start)
+        
+        self.start_btn = primary_button(buttons, "Start", self.start, physics=True)
         self.start_btn.pack(side="right")
+        
         self.cancel_btn = secondary_button(buttons, "Cancel", self.cancel)
         self.cancel_btn.pack(side="right", padx=8)
         self.cancel_btn.configure(state="disabled")
 
         body = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
-        body.pack(fill="both", expand=True, padx=32, pady=(14, 12))
-        body.grid_columnconfigure(0, weight=3, uniform="cols")
-        body.grid_columnconfigure(1, weight=2, uniform="cols")
+        body.pack(fill="both", expand=True, padx=32, pady=(5, 10))
+        
+        body.grid_columnconfigure(0, weight=4, uniform="cols")
+        body.grid_columnconfigure(1, weight=3, uniform="cols")
         body.grid_rowconfigure(0, weight=1)
 
         left = ctk.CTkFrame(body, fg_color="transparent", corner_radius=0)
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
-
-        self.preview = PreviewPanel(left, prefer=self.PREVIEW_PREFER)
-        self.preview.pack(side="bottom", fill="x", pady=(10, 0))
+        
+        # This grid configuration enforces a perfect 50/50 split between Files and Preview
+        left.grid_rowconfigure(0, weight=1)
+        left.grid_rowconfigure(1, weight=1)
+        left.grid_columnconfigure(0, weight=1)
 
         files_card = card(left)
-        files_card.pack(side="top", fill="both", expand=True)
+        files_card.grid(row=0, column=0, sticky="nsew", pady=(0, 10))
+
+        self.preview = PreviewPanel(left, prefer=self.PREVIEW_PREFER)
+        self.preview.grid(row=1, column=0, sticky="nsew")
 
         top = ctk.CTkFrame(files_card, fg_color="transparent", corner_radius=0)
         top.pack(fill="x", padx=16, pady=(12, 4))
@@ -364,7 +369,7 @@ class ToolPage(Page):
         tools.pack(fill="x", padx=16, pady=(0, 8))
 
         self.filter_entry = ctk.CTkEntry(
-            tools, textvariable=self.filter_var, height=30, corner_radius=0,
+            tools, textvariable=self.filter_var, height=30, corner_radius=theme.RADIUS,
             font=theme.font(12), fg_color=theme.BG,
             border_color=theme.BORDER, text_color=theme.TEXT,
             placeholder_text="Filter...",
@@ -396,13 +401,14 @@ class ToolPage(Page):
         self.file_list.pack(side="top", fill="both", expand=True, padx=16, pady=(0, 8))
 
         self.empty_frame = ctk.CTkFrame(self.file_list, fg_color="transparent", corner_radius=0)
-        empty_icon = ctk.CTkLabel(self.empty_frame, text="📂", font=theme.font(48), text_color=theme.BORDER, corner_radius=0)
-        empty_icon.pack(pady=(30, 10))
-        empty_title = label(self.empty_frame, "No files", 16, "bold")
+        empty_icon = ctk.CTkLabel(self.empty_frame, text="📂", font=theme.font(38), text_color=theme.BORDER, corner_radius=0)
+        empty_icon.pack(pady=(10, 4))
+        empty_title = label(self.empty_frame, "No files", 15, "bold")
         empty_title.pack()
-        empty_desc = label(self.empty_frame, "Drag files here or press Ctrl+V.", 13, color=theme.MUTED, justify="center")
-        empty_desc.pack(pady=(4, 16))
-        primary_button(self.empty_frame, "Browse", self.pick_files, width=120).pack(pady=(0, 30))
+        empty_desc = label(self.empty_frame, "Drag files here or press Ctrl+V.", 12, color=theme.MUTED, justify="center")
+        empty_desc.pack(pady=(2, 8))
+        
+        primary_button(self.empty_frame, "Browse", self.pick_files, width=120, physics=True).pack(pady=(0, 10))
 
         self._empty_widgets = (empty_icon, empty_title, empty_desc)
         for w in self._empty_widgets:
@@ -415,14 +421,26 @@ class ToolPage(Page):
         )
         right.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
 
-        label(right, "Action", 15, "bold").pack(fill="x", padx=16, pady=(8, 8))
-        self.action_menu = option_menu(
-            right, self.ACTIONS, self.action_var, command=self.action_changed
-        )
+        label(right, "Action", 15, "bold").pack(fill="x", padx=16, pady=(12, 8))
+        
+        use_cards = load_config().get("use_card_actions", True)
+        if use_cards:
+            self.action_menu = action_button(
+                right, self.ACTIONS, self.action_var, 
+                command=self.action_changed, 
+                descriptions=self.ACTION_DESCRIPTIONS,
+                page=self
+            )
+        else:
+            self.action_menu = option_menu(
+                right, self.ACTIONS, self.action_var, command=self.action_changed
+            )
+            
         self.action_menu.pack(fill="x", padx=16)
 
-        # ---- PRESETS UI ----
-        label(right, "Presets", 15, "bold").pack(fill="x", padx=16, pady=(18, 4))
+        DashedSeparator(right)
+
+        label(right, "Presets", 15, "bold").pack(fill="x", padx=16, pady=(0, 4))
         preset_row = ctk.CTkFrame(right, fg_color="transparent", corner_radius=0)
         preset_row.pack(fill="x", padx=16, pady=0)
 
@@ -436,12 +454,15 @@ class ToolPage(Page):
         self.delete_preset_btn.pack(side="right", padx=(4, 0))
 
         self.refresh_preset_menu()
-        # --------------------
+
+        DashedSeparator(right)
 
         self.settings = ctk.CTkFrame(right, fg_color="transparent", corner_radius=0)
-        self.settings.pack(fill="x", padx=16, pady=(14, 0))
+        self.settings.pack(fill="x", padx=16, pady=(0, 0))
 
-        label(right, "Save to", 15, "bold").pack(fill="x", padx=16, pady=(18, 8))
+        DashedSeparator(right)
+
+        label(right, "Save to", 15, "bold").pack(fill="x", padx=16, pady=(0, 8))
 
         self.output_label = label(right, "", 12, color=theme.MUTED)
         self.output_label.pack(fill="x", padx=16)
@@ -450,28 +471,29 @@ class ToolPage(Page):
             right, text="Same folder as original", variable=self.same_folder_var,
             font=theme.font(12), text_color=theme.MUTED,
             fg_color=theme.ACCENT, hover_color=theme.ACCENT_HOVER,
-            checkbox_width=16, checkbox_height=16, corner_radius=0, command=self.refresh_output_label
+            border_color=theme.BORDER, checkmark_color=theme.get_contrast_text(theme.ACCENT),
+            checkbox_width=16, checkbox_height=16, corner_radius=theme.RADIUS, command=self.refresh_output_label
         )
-        self.same_folder_chk.pack(fill="x", padx=16, pady=(4, 8))
+        self.same_folder_chk.pack(fill="x", padx=16, pady=(6, 8))
 
         output_buttons = ctk.CTkFrame(right, fg_color="transparent", corner_radius=0)
-        output_buttons.pack(fill="x", padx=16, pady=(0, 14))
-
+        output_buttons.pack(fill="x", padx=16, pady=(0, 16))
+        
         self.output_btn = secondary_button(
             output_buttons, "Choose", self.pick_output, width=100
         )
         self.output_btn.pack(side="left")
-
+        
         self.recent_btn = secondary_button(
             output_buttons, "Recent", self.show_recent_menu, width=80
         )
         self.recent_btn.pack(side="left", padx=8)
-
+        
         self.presets_btn = secondary_button(
             output_buttons, "Saved", self.show_presets_menu, width=80
         )
         self.presets_btn.pack(side="left")
-
+        
         self.open_btn = secondary_button(
             output_buttons, "Open", self.open_output, width=70
         )

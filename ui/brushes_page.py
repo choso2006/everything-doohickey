@@ -23,6 +23,29 @@ ACTIONS = [
 class BrushesPage(ToolPage):
     ACTIONS = ACTIONS
 
+    ACTION_DESCRIPTIONS = {
+        "Procreate -> Textures": {
+            "desc": "Extract the exact brush tip textures and translated settings from Procreate.",
+            "ex": "Get Shape.png + settings.txt from .brushset files",
+            "icon": "🖌️",
+        },
+        "Procreate -> CSP (.sut)": {
+            "desc": "Convert Procreate brushes directly into Clip Studio Paint .sut files.",
+            "ex": "Turn a Procreate pen into a native CSP brush",
+            "icon": "🎨",
+        },
+        "CSP -> Procreate (.brush)": {
+            "desc": "Convert Clip Studio Paint .sut brushes directly into Procreate .brush files.",
+            "ex": "Turn a CSP watercolor brush into a Procreate brush",
+            "icon": "🖌️",
+        },
+        "CSP -> Textures": {
+            "desc": "Extract raw brush tip images and settings from Clip Studio .sut files.",
+            "ex": "Get raw texture images and settings from CSP files",
+            "icon": "🖼️",
+        },
+    }
+
     def __init__(self, parent, state=None):
         super().__init__(
             parent, "Brushes",
@@ -98,7 +121,7 @@ class BrushesPage(ToolPage):
             label_text = "none chosen"
         ctk.CTkLabel(
             box, text=label_text, font=theme.font(12), text_color=theme.MUTED,
-        ).pack(anchor="w", pady=(2, 0))
+        ).pack(anchor="w", pady=(4, 0))
 
         note(box,
              "How to make the template (once):\n"

@@ -11,6 +11,14 @@ ACTIONS = ["Convert"]
 class DocsPage(ToolPage):
     ACTIONS = ACTIONS
 
+    ACTION_DESCRIPTIONS = {
+        "Convert": {
+            "desc": "Convert documents to PDF and back using LibreOffice.",
+            "ex": "DOCX ➔ PDF, XLSX ➔ CSV, PPTX ➔ PDF",
+            "icon": "📄",
+        },
+    }
+
     def __init__(self, parent, state=None):
         super().__init__(
             parent, "Documents",
